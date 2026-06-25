@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>煤炭中观数据追踪系统 v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+:root{
+  --bg:#0a0c0f;--bg2:#111417;--bg3:#181c21;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#e2e8f0;--text2:#8899aa;--text3:#556677;
+  --accent:#f5a623;--accent2:#e8593c;
+  --green:#3dd68c;--red:#f06060;--blue:#4a9eff;--teal:#2dd4bf;--purple:#a78bfa;
+  --mono:'JetBrains Mono',monospace;--sans:'Noto Sans SC',sans-serif;
+  --ovr:rgba(255,255,255,.05);--ovr2:rgba(255,255,255,.15);--chart-grid:rgba(255,255,255,.05);
+}
+body.light{
+  --bg:#eef1f5;--bg2:#ffffff;--bg3:#f3f5f8;
+  --border:rgba(15,23,42,0.09);--border2:rgba(15,23,42,0.16);
+  --text:#0f172a;--text2:#475569;--text3:#8a97a8;
+  --accent:#c2740c;--accent2:#d4502f;
+  --green:#16a34a;--red:#dc2626;--blue:#2563eb;--teal:#0d9488;--purple:#7c3aed;
+  --ovr:rgba(15,23,42,.05);--ovr2:rgba(15,23,42,.18);--chart-grid:rgba(15,23,42,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;transition:background .2s ease,color .2s ease;}
+.header{border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--bg2);}
+.logo{width:26px;height:26px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:11px;color:#000;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.title-block h1{font-size:13px;font-weight:500;}
+.title-block p{font-size:10px;color:var(--text3);font-family:var(--mono);}
+.badge-live{padding:2px 7px;border-radius:3px;font-size:10px;font-family:var(--mono);font-weight:500;}
+.badge-live.live{background:rgba(61,214,140,0.12);color:var(--green);border:1px solid rgba(61,214,140,0.2);}
+.badge-live.loading{background:rgba(245,166,35,0.12);color:var(--accent);border:1px solid rgba(245,166,35,0.2);}
+.badge-live.sample{background:rgba(85,102,119,0.15);color:var(--text3);border:1px solid rgba(85,102,119,0.2);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.live-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;margin-right:3px;}
+.spin{display:inline-block;width:8px;height:8px;border:1.5px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-right:4px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.nav-tabs{display:flex;gap:1px;padding:8px 20px;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto;}
+.nav-tab{padding:5px 12px;border-radius:4px;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;border:1px solid transparent;position:relative;}
+.nav-tab:hover{color:var(--text);background:var(--bg3);}
+.nav-tab.active{color:var(--accent);background:rgba(245,166,35,0.08);border-color:rgba(245,166,35,0.2);}
+.nav-tab .new-pip{position:absolute;top:-3px;right:-1px;width:5px;height:5px;border-radius:50%;background:var(--green);}
+.main{padding:14px 20px;display:flex;flex-direction:column;gap:12px;}
+.hidden{display:none;}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);}
+.pt{font-size:12px;font-weight:500;color:var(--text);}
+.ps{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px;}
+.pa{display:flex;gap:5px;align-items:center;}
+.bx{padding:3px 7px;border-radius:3px;font-size:10px;font-family:var(--mono);cursor:pointer;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);transition:all .15s;}
+.bx:hover{color:var(--text);}
+.bx.active{background:rgba(245,166,35,0.1);border-color:rgba(245,166,35,0.3);color:var(--accent);}
+.bx.danger{border-color:rgba(240,96,96,.3);color:var(--red);}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:12px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi.a::before{background:var(--accent);}
+.kpi.r::before{background:var(--accent2);}
+.kpi.g::before{background:var(--green);}
+.kpi.b::before{background:var(--blue);}
+.kl{font-size:10px;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;font-family:var(--mono);}
+.kv{font-size:20px;font-weight:700;font-family:var(--mono);margin:5px 0 2px;}
+.km{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:5px;}
+.up{color:var(--green);font-family:var(--mono);font-size:10px;}
+.dn{color:var(--red);font-family:var(--mono);font-size:10px;}
+.fl{color:var(--text3);font-family:var(--mono);font-size:10px;}
+.sp{display:flex;align-items:flex-end;gap:2px;height:20px;margin-top:7px;}
+.spb{width:4px;border-radius:1px;background:var(--accent);opacity:.45;}
+.spb.last{opacity:1;}
+.dt{width:100%;border-collapse:collapse;}
+.dt th{font-size:10px;font-family:var(--mono);letter-spacing:.4px;color:var(--text3);text-transform:uppercase;padding:7px 14px;text-align:left;border-bottom:1px solid var(--border);font-weight:400;}
+.dt th:not(:first-child){text-align:right;}
+.dt td{padding:10px 14px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);}
+.dt td:not(:first-child){text-align:right;}
+.dt tr:hover td{background:var(--ovr);}
+.dt td:first-child{color:var(--text);}
+.mono{font-family:var(--mono);}
+.panels2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.full{grid-column:1/-1;}
+.ca{padding:13px 14px;}
+.tag{display:inline-block;padding:2px 5px;border-radius:3px;font-size:9px;font-family:var(--mono);}
+.tag-g{background:rgba(61,214,140,.1);color:var(--green);border:1px solid rgba(61,214,140,.2);}
+.tag-r{background:rgba(240,96,96,.1);color:var(--red);border:1px solid rgba(240,96,96,.2);}
+.tag-a{background:rgba(245,166,35,.1);color:var(--accent);border:1px solid rgba(245,166,35,.2);}
+.tag-b{background:rgba(74,158,255,.1);color:var(--blue);border:1px solid rgba(74,158,255,.2);}
+.sdot{width:5px;height:5px;border-radius:50%;display:inline-block;margin-right:4px;}
+.sg{background:var(--green);box-shadow:0 0 4px var(--green);}
+.sa{background:var(--accent);box-shadow:0 0 4px var(--accent);}
+.sr{background:var(--red);box-shadow:0 0 4px var(--red);}
+.vbar{height:3px;border-radius:1px;background:var(--accent);opacity:.5;display:inline-block;}
+.mini-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px;}
+.mkpi{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:11px;}
+.mkpi-l{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.4px;}
+.mkpi-v{font-size:17px;font-weight:700;font-family:var(--mono);margin:3px 0 2px;}
+.mkpi-s{font-size:10px;color:var(--text2);}
+.curve-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.stock-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:12px 14px;}
+.sc{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:11px 13px;cursor:pointer;transition:border-color .15s;}
+.sc:hover{border-color:var(--border2);}
+.sc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px;}
+.sc-name{font-size:12px;font-weight:500;color:var(--text);}
+.sc-code{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px;}
+.sc-price{font-size:19px;font-weight:700;font-family:var(--mono);margin-bottom:3px;}
+.sc-meta{display:flex;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.sc-mi{flex:1;}
+.sc-ml{font-size:9px;color:var(--text3);font-family:var(--mono);}
+.sc-mv{font-size:10px;font-family:var(--mono);color:var(--text2);margin-top:1px;}
+.sg-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.sig-item{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:11px;}
+.sig-l{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.4px;}
+.sig-v{font-size:17px;font-weight:700;font-family:var(--mono);margin:3px 0 2px;}
+.sig-d{font-size:11px;color:var(--text2);}
+.ab{background:rgba(245,166,35,.04);border:1px solid rgba(245,166,35,.15);border-radius:5px;margin:0 14px 14px;padding:13px;font-size:12px;line-height:1.7;color:var(--text2);}
+.ab-t{font-size:10px;letter-spacing:.7px;text-transform:uppercase;font-family:var(--mono);color:var(--accent);margin-bottom:7px;}
+.ab strong{color:var(--accent);font-weight:500;}
+.ef{padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fl2{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.4px;}
+.fi{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:7px 9px;font-size:12px;font-family:var(--mono);color:var(--text);outline:none;transition:border-color .15s;width:100%;}
+.fi:focus{border-color:rgba(245,166,35,.4);}
+.fi::placeholder{color:var(--text3);}
+.ff{padding:0 14px 14px;display:flex;gap:7px;flex-wrap:wrap;}
+.bs{padding:7px 14px;border-radius:4px;background:var(--accent);color:#000;font-size:11px;font-weight:700;font-family:var(--mono);cursor:pointer;border:none;transition:opacity .15s;letter-spacing:.4px;}
+.bs:hover{opacity:.85;}
+.bc{padding:7px 14px;border-radius:4px;background:transparent;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;border:1px solid var(--border2);transition:all .15s;}
+.bc:hover{color:var(--text);}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;padding:9px 14px;font-size:11px;font-family:var(--mono);color:var(--green);transform:translateY(50px);opacity:0;transition:all .3s;z-index:999;}
+.toast.show{transform:translateY(0);opacity:1;}
+/* ---- 批量导入区域 ---- */
+.drop-zone{border:2px dashed var(--border2);border-radius:8px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin:14px;}
+.drop-zone.over{border-color:var(--accent);background:rgba(245,166,35,.04);}
+.drop-zone-icon{font-size:28px;margin-bottom:8px;}
+.drop-zone p{font-size:11px;color:var(--text3);font-family:var(--mono);}
+.drop-zone strong{color:var(--accent);}
+.import-preview{margin:0 14px 14px;border:1px solid var(--border);border-radius:6px;overflow:auto;max-height:220px;}
+.import-status{margin:0 14px 12px;padding:9px 12px;border-radius:5px;font-size:11px;font-family:var(--mono);background:rgba(61,214,140,.06);border:1px solid rgba(61,214,140,.2);color:var(--green);}
+.import-status.err{background:rgba(240,96,96,.06);border-color:rgba(240,96,96,.2);color:var(--red);}
+/* ---- 实时行情状态 ---- */
+.api-status-bar{padding:8px 14px;font-size:10px;font-family:var(--mono);color:var(--text3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.api-status-item{display:flex;align-items:center;gap:4px;}
+.api-dot{width:5px;height:5px;border-radius:50%;}
+.api-dot.ok{background:var(--green);}
+.api-dot.err{background:var(--red);}
+.api-dot.load{background:var(--accent);animation:pulse 1s infinite;}
+/* ---- 外生指标 ---- */
+.exo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:12px 14px;}
+.exo-item{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.exo-l{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:.4px;margin-bottom:4px;}
+.exo-v{font-size:15px;font-weight:700;font-family:var(--mono);}
+.exo-s{font-size:10px;color:var(--text2);margin-top:2px;}
+/* ---- GitHub Pages 部署提示 ---- */
+.deploy-block{background:rgba(74,158,255,.04);border:1px solid rgba(74,158,255,.15);border-radius:6px;padding:14px;margin:14px;font-size:11px;font-family:var(--mono);line-height:1.8;color:var(--text2);}
+.deploy-block h3{color:var(--blue);font-size:11px;font-weight:500;margin-bottom:8px;}
+.deploy-block code{background:var(--bg3);padding:2px 5px;border-radius:3px;color:var(--text);font-size:10px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">CM</div>
+    <div class="title-block">
+      <h1>煤炭中观数据追踪系统</h1>
+      <p>COAL MESO-DATA TRACKER · v3.0</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:9px;">
+    <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="ts"></span>
+    <span class="badge-live loading" id="main-badge"><span class="spin"></span>加载中</span>
+    <button class="bx" id="theme-btn" onclick="toggleTheme()" style="font-size:10px">☀️ 浅色</button>
+    <button class="bx" onclick="refreshAllData()" style="font-size:10px">⟳ 刷新行情</button>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="sw('overview')">总览</div>
+  <div class="nav-tab" onclick="sw('supply')">供给端</div>
+  <div class="nav-tab" onclick="sw('demand')">需求端</div>
+  <div class="nav-tab" onclick="sw('inventory')">库存端</div>
+  <div class="nav-tab" onclick="sw('exogenous')">外生指标</div>
+  <div class="nav-tab" onclick="sw('price')">比价关系</div>
+  <div class="nav-tab" onclick="sw('futures')">期货行情<span class="new-pip"></span></div>
+  <div class="nav-tab" onclick="sw('stocks')">上市公司<span class="new-pip"></span></div>
+  <div class="nav-tab" onclick="sw('entry')">数据录入</div>
+  <div class="nav-tab" onclick="sw('signal')">投资信号</div>
+</div>
+
+<div class="main">
+
+<!-- ===== 总览 ===== -->
+<div id="tab-overview">
+  <div class="kpi-row">
+    <div class="kpi a"><div class="kl">秦皇岛动力煤</div><div class="kv" id="k1">—</div><div class="km" id="k1m">元/吨</div><div class="sp" id="sp1"></div></div>
+    <div class="kpi r"><div class="kl">焦炭（一级）</div><div class="kv" id="k2">—</div><div class="km" id="k2m">元/吨</div><div class="sp" id="sp2"></div></div>
+    <div class="kpi g"><div class="kl">焦化利润</div><div class="kv" id="k3">—</div><div class="km" id="k3m">元/吨</div><div class="sp" id="sp3"></div></div>
+    <div class="kpi b"><div class="kl">秦皇岛港库存</div><div class="kv" id="k4">—</div><div class="km" id="k4m">万吨</div><div class="sp" id="sp4"></div></div>
+  </div>
+  <div class="panels2">
+    <div class="panel">
+      <div class="ph"><div><div class="pt">供给端核心指标</div><div class="ps">月度</div></div></div>
+      <table class="dt" id="ov-sup"></table>
+    </div>
+    <div class="panel">
+      <div class="ph"><div><div class="pt">需求端核心指标</div><div class="ps">月度/日度</div></div></div>
+      <table class="dt" id="ov-dem"></table>
+    </div>
+    <div class="panel full">
+      <div class="ph">
+        <div><div class="pt">价格走势</div><div class="ps">近12周 · 元/吨</div></div>
+        <div class="pa">
+          <div class="bx active" onclick="togglePriceChart('qhd',this)">动力煤</div>
+          <div class="bx" onclick="togglePriceChart('coke',this)">焦炭</div>
+          <div class="bx" onclick="togglePriceChart('coking',this)">炼焦煤</div>
+        </div>
+      </div>
+      <div class="ca"><canvas id="priceChart" height="150"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 供给端 ===== -->
+<div id="tab-supply" class="hidden">
+  <div class="panel">
+    <div class="ph"><div><div class="pt">供给端完整指标</div><div class="ps">来源：煤炭网/海关总署 · 每月20日</div></div></div>
+    <table class="dt" id="sup-full"></table>
+  </div>
+</div>
+
+<!-- ===== 需求端 ===== -->
+<div id="tab-demand" class="hidden">
+  <div class="panel">
+    <div class="ph"><div><div class="pt">需求端完整指标</div><div class="ps">来源：煤炭网/中电联</div></div></div>
+    <table class="dt" id="dem-full"></table>
+  </div>
+</div>
+
+<!-- ===== 库存端 ===== -->
+<div id="tab-inventory" class="hidden">
+  <div class="panel">
+    <div class="ph"><div><div class="pt">库存端完整指标</div><div class="ps">来源：煤炭网 · 周度</div></div></div>
+    <table class="dt" id="inv-full"></table>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">港口库存走势</div><div class="ps">近12周</div></div>
+    <div class="ca"><canvas id="invChart" height="130"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== 外生指标 ===== -->
+<div id="tab-exogenous" class="hidden">
+  <div class="panel">
+    <div class="ph">
+      <div><div class="pt">外生关键指标</div><div class="ps">来源：华通人/Bloomberg/Clarkson · 表3</div></div>
+      <div class="pa"><div class="bx" onclick="refreshExogenous()">⟳ 刷新</div></div>
+    </div>
+    <div class="exo-grid" id="exo-grid"></div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">外生指标数据表</div><div class="ps">EXO DATA · 月度/周度</div></div>
+    <table class="dt" id="exo-table"></table>
+  </div>
+</div>
+
+<!-- ===== 比价 ===== -->
+<div id="tab-price" class="hidden">
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi a"><div class="kl">焦炭/炼焦煤</div><div class="kv" id="ratio-jjm">—</div><div class="km" id="ratio-jjm-s">均值1.45</div></div>
+    <div class="kpi r"><div class="kl">焦化利润</div><div class="kv" id="coking-margin">—</div><div class="km" id="coking-margin-s">元/吨</div></div>
+    <div class="kpi g"><div class="kl">煤油比价(煤/油)</div><div class="kv" id="coal-oil-kpi">—</div><div class="km" id="coal-oil-kpi-s">参考1.25</div></div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">比价关系详细追踪</div><div class="ps" id="spread-note">SPREAD MONITOR</div></div>
+    <table class="dt" id="spread-t"></table>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">焦化产业链利润历史</div><div class="ps">近12周</div></div>
+    <div class="ca"><canvas id="marginChart" height="130"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== 期货行情 ===== -->
+<div id="tab-futures" class="hidden">
+  <div class="panel" style="margin-bottom:12px">
+    <div class="api-status-bar">
+      <span style="color:var(--text2)">行情数据源：</span>
+      <span class="api-status-item"><span class="api-dot load" id="dot-ef"></span>东方财富</span>
+      <span class="api-status-item"><span class="api-dot load" id="dot-sina"></span>新浪财经</span>
+      <span style="color:var(--text3);margin-left:auto" id="fut-update-time">加载中...</span>
+    </div>
+  </div>
+  <div class="mini-kpi-row" id="fut-kpi-row">
+    <div class="mkpi" style="border-top:2px solid var(--accent)"><div class="mkpi-l">ZC 动力煤主力</div><div class="mkpi-v" id="fut-zc">—</div><div class="mkpi-s" id="fut-zc-s">加载中</div></div>
+    <div class="mkpi" style="border-top:2px solid var(--red)"><div class="mkpi-l">J 焦炭主力</div><div class="mkpi-v" id="fut-j">—</div><div class="mkpi-s" id="fut-j-s">加载中</div></div>
+    <div class="mkpi" style="border-top:2px solid var(--blue)"><div class="mkpi-l">JM 焦煤主力</div><div class="mkpi-v" id="fut-jm">—</div><div class="mkpi-s" id="fut-jm-s">加载中</div></div>
+    <div class="mkpi" style="border-top:2px solid var(--teal)"><div class="mkpi-l">J-JM 利润差</div><div class="mkpi-v" id="fut-spread">—</div><div class="mkpi-s" id="fut-spread-s">焦化利润</div></div>
+  </div>
+  <div class="panel">
+    <div class="ph">
+      <div><div class="pt">煤炭期货合约行情</div><div class="ps" id="fut-source-note">郑商所 ZCE · 大商所 DCE · 实时行情</div></div>
+      <div class="pa">
+        <div class="bx active" onclick="filterFut('all',this)">全部</div>
+        <div class="bx" onclick="filterFut('zce',this)">郑商所</div>
+        <div class="bx" onclick="filterFut('dce',this)">大商所</div>
+        <div class="bx" onclick="refreshFutures()" style="color:var(--teal)">⟳ 刷新</div>
+      </div>
+    </div>
+    <table class="dt">
+      <thead><tr><th style="width:28%">合约</th><th>最新价</th><th>涨跌</th><th>涨跌幅</th><th>成交量</th><th>持仓量</th><th>基差</th></tr></thead>
+      <tbody id="fut-tbody"></tbody>
+    </table>
+  </div>
+  <div class="curve-row" style="margin-top:12px">
+    <div class="panel">
+      <div class="ph"><div class="pt">ZC 动力煤期限结构</div><div class="ps">元/吨</div></div>
+      <div class="ca"><canvas id="zcCurve" height="135"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><div class="pt">J/JM 价差历史</div><div class="ps">近12周</div></div>
+      <div class="ca"><canvas id="spreadFut" height="135"></canvas></div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">跨期套利监控</div><div class="ps">CALENDAR SPREAD</div></div>
+    <table class="dt"><thead><tr><th>套利组合</th><th>近月</th><th>远月</th><th>价差</th><th>历史均值</th><th>偏离</th><th>信号</th></tr></thead><tbody id="arb-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ===== 上市公司 ===== -->
+<div id="tab-stocks" class="hidden">
+  <div class="panel" style="margin-bottom:12px">
+    <div class="api-status-bar">
+      <span style="color:var(--text2)">股票数据源：</span>
+      <span class="api-status-item"><span class="api-dot load" id="dot-stock"></span>东方财富行情</span>
+      <span style="color:var(--text3);margin-left:auto" id="stock-update-time">加载中...</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);font-family:var(--mono)"><div id="stock-market-dot" style="width:5px;height:5px;border-radius:50%;background:var(--accent)"></div><span id="stock-market-status">A股行情</span></div>
+    <div style="display:flex;gap:5px;">
+      <div class="bx active" onclick="filterSt('all',this)">全部</div>
+      <div class="bx" onclick="filterSt('thermal',this)">动力煤</div>
+      <div class="bx" onclick="filterSt('coking',this)">焦煤焦炭</div>
+      <div class="bx" onclick="filterSt('mixed',this)">综合煤企</div>
+      <div class="bx" onclick="refreshStocks()" style="color:var(--teal)">⟳ 刷新</div>
+    </div>
+  </div>
+  <div class="stock-grid" id="stock-grid"></div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">估值对比</div><div class="ps">VALUATION · A股煤炭板块</div></div>
+    <table class="dt"><thead><tr><th>公司</th><th>股价</th><th>涨跌幅</th><th>PE</th><th>PB</th><th>股息率</th><th>市值(亿)</th><th>评级</th></tr></thead><tbody id="val-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ===== 录入 ===== -->
+<div id="tab-entry" class="hidden">
+  <!-- 手动录入 -->
+  <div class="panel">
+    <div class="ph"><div><div class="pt">手动录入数据</div><div class="ps">本地 IndexedDB 持久化存储</div></div></div>
+    <div class="ef">
+      <div class="fg"><label class="fl2">录入日期</label><input class="fi" type="date" id="e-date"></div>
+      <div class="fg"><label class="fl2">动力煤（元/吨）</label><input class="fi" type="number" id="e-qhd" placeholder="785"></div>
+      <div class="fg"><label class="fl2">炼焦煤（元/吨）</label><input class="fi" type="number" id="e-coking" placeholder="1300"></div>
+      <div class="fg"><label class="fl2">焦炭（元/吨）</label><input class="fi" type="number" id="e-coke" placeholder="1820"></div>
+      <div class="fg"><label class="fl2">港口库存（万吨）</label><input class="fi" type="number" id="e-inv" placeholder="482"></div>
+      <div class="fg"><label class="fl2">电厂日耗（万吨）</label><input class="fi" type="number" id="e-cons" placeholder="78"></div>
+      <div class="fg"><label class="fl2">原煤产量（万吨/月）</label><input class="fi" type="number" id="e-prod" placeholder="38000"></div>
+      <div class="fg"><label class="fl2">进口煤（万吨/月）</label><input class="fi" type="number" id="e-imp" placeholder="4200"></div>
+      <div class="fg"><label class="fl2">螺纹钢（元/吨）</label><input class="fi" type="number" id="e-rebar" placeholder="3650"></div>
+    </div>
+    <div class="ff">
+      <button class="bs" onclick="saveEntry()">保存数据</button>
+      <button class="bc" onclick="clearEntry()">清空</button>
+      <button class="bc" onclick="downloadTemplate()">↓ 下载CSV模板</button>
+      <button class="bc" onclick="exportAllData()">↓ 导出全部数据</button>
+    </div>
+  </div>
+
+  <!-- 批量导入 -->
+  <div class="panel" style="margin-top:12px">
+    <div class="ph">
+      <div><div class="pt">批量 CSV 导入</div><div class="ps">支持拖拽 · 格式与模板一致</div></div>
+      <div class="pa"><div class="bx" onclick="downloadTemplate()">↓ 下载模板</div></div>
+    </div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file').click()">
+      <div class="drop-zone-icon">📂</div>
+      <p><strong>点击选择</strong>或拖拽 CSV 文件到此处</p>
+      <p style="margin-top:4px;font-size:10px">支持 UTF-8 / GBK 编码 · 最大 5MB</p>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleCSVFile(this.files[0])">
+    </div>
+    <div id="import-status" style="display:none"></div>
+    <div id="import-preview" style="display:none" class="import-preview"></div>
+    <div id="import-actions" style="display:none" class="ff">
+      <button class="bs" onclick="confirmImport()">确认导入</button>
+      <button class="bc" onclick="cancelImport()">取消</button>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="panel" style="margin-top:12px">
+    <div class="ph">
+      <div><div class="pt">历史录入记录</div><div class="ps">本地存储</div></div>
+      <div class="pa">
+        <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="record-count">0条记录</span>
+        <div class="bx danger" onclick="clearAllData()">清空全部</div>
+      </div>
+    </div>
+    <table class="dt"><thead><tr><th>日期</th><th>动力煤</th><th>焦炭</th><th>炼焦煤</th><th>港口库存</th><th>日耗</th><th>操作</th></tr></thead><tbody id="hist-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ===== 投资信号 ===== -->
+<div id="tab-signal" class="hidden">
+  <div class="sg-row" id="signal-cards">
+    <div class="sig-item"><div class="sig-l">动力煤综合信号</div><div class="sig-v" style="color:var(--accent)" id="sig-thermal">—</div><div class="sig-d" id="sig-thermal-d">计算中...</div></div>
+    <div class="sig-item"><div class="sig-l">焦化利润信号</div><div class="sig-v" id="sig-coking">—</div><div class="sig-d" id="sig-coking-d">计算中...</div></div>
+    <div class="sig-item"><div class="sig-l">进口套利窗口</div><div class="sig-v" id="sig-arb">—</div><div class="sig-d" id="sig-arb-d">计算中...</div></div>
+    <div class="sig-item"><div class="sig-l">库存周期信号</div><div class="sig-v" id="sig-inv">—</div><div class="sig-d" id="sig-inv-d">计算中...</div></div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">综合投资分析</div><div class="ps">INVESTMENT ANALYSIS · AI辅助</div></div>
+    <div class="ab" id="signal-analysis">
+      <div class="ab-t">⬡ 当前研判</div>
+      <p id="sig-text">加载行情数据中，请稍候...</p>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">中观打分框架</div><div class="ps">SCORING MODEL</div></div>
+    <table class="dt">
+      <thead><tr><th>维度</th><th>权重</th><th>得分</th><th>方向</th><th>关键指标</th></tr></thead>
+      <tbody id="score-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end .main -->
+<div class="toast" id="toast">✓ 数据已保存</div>
+
+<script>
+// ============================================================
+// 全局状态
+// ============================================================
+const TABS = ['overview','supply','demand','inventory','exogenous','price','futures','stocks','entry','signal'];
+let pcBuilt=false,pcObj=null,pcMode='qhd',icBuilt=false,mcBuilt=false,fcBuilt=false;
+let pendingImportData = null;
+
+// 实时/模拟数据状态
+const STATE = {
+  futuresData: [],      // 期货行情
+  stocksData: [],       // 股票行情
+  futuresLoaded: false,
+  stocksLoaded: false,
+  lastFutUpdate: null,
+  lastStockUpdate: null,
+};
+
+// 历史序列（模拟底层）
+function rw(s,v,n){let a=[],x=s;for(let i=0;i<n;i++){x+=(Math.random()-.48)*v;a.push(Math.round(x));}return a;}
+const WKS=['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12'];
+const qhdH=rw(800,18,12),cokeH=rw(1900,40,12),cookH=rw(1300,30,12);
+const invH=rw(460,20,12),marginH=rw(-60,30,12),spreadFutH=rw(-80,25,12);
+
+// ============================================================
+// 时间戳
+// ============================================================
+const now = new Date();
+document.getElementById('ts').textContent = now.toLocaleDateString('zh-CN')+' '+now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+const eDate = document.getElementById('e-date');
+if(eDate) eDate.value = now.toISOString().split('T')[0];
+
+// ============================================================
+// 标签页切换
+// ============================================================
+function sw(tab){
+  TABS.forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.classList.toggle('hidden',t!==tab);
+  });
+  document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===tab));
+  if(tab==='overview'&&!pcBuilt) buildPriceChart();
+  if(tab==='inventory'&&!icBuilt){icBuilt=true;buildLineChart('invChart',invH,'#2dd4bf',130);}
+  if(tab==='price'&&!mcBuilt){mcBuilt=true;buildLineChart('marginChart',marginH,'#a78bfa',130);}
+  if(tab==='futures'&&!fcBuilt) buildFutCharts();
+  if(tab==='exogenous'){ exoLoaded ? renderExogenous() : loadExogenous(); }
+}
+
+// ============================================================
+// Chart.js 通用配置
+// ============================================================
+function cssVar(n){return getComputedStyle(document.body).getPropertyValue(n).trim();}
+// 图表配置随主题动态生成（读取当前 CSS 变量）
+function chartOpt(){
+  const grid=cssVar('--chart-grid'),tick=cssVar('--text3');
+  return {responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:cssVar('--bg3'),borderColor:cssVar('--border2'),borderWidth:1,titleColor:cssVar('--text2'),bodyColor:cssVar('--text'),titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11}}},scales:{x:{grid:{color:grid},ticks:{color:tick,font:{family:'JetBrains Mono',size:9}}},y:{grid:{color:grid},ticks:{color:tick,font:{family:'JetBrains Mono',size:9}}}},elements:{point:{radius:2,hoverRadius:4},line:{tension:.35}}};
+}
+function buildLineChart(id,data,color,h){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  new Chart(ctx,{type:'line',data:{labels:WKS,datasets:[{data,borderColor:color,backgroundColor:color+'22',fill:true,borderWidth:2}]},options:chartOpt()});
+}
+
+// ============================================================
+// 总览 KPI
+// ============================================================
+function updateKPI(id,val,meta,histArr){
+  const el=document.getElementById(id);if(el)el.textContent=val;
+  const em=document.getElementById(id.replace('k','k')+'m');if(em&&meta)em.innerHTML=meta;
+  const spId='sp'+id.replace('k','');
+  mkSp(spId,histArr);
+}
+function mkSp(id,data){
+  const el=document.getElementById(id);if(!el)return;
+  const mx=Math.max(...data),mn=Math.min(...data);
+  el.innerHTML=data.map((v,i)=>{const h=Math.max(3,Math.round(((v-mn)/(mx-mn+1))*18));return`<div class="spb${i===data.length-1?' last':''}" style="height:${h}px"></div>`;}).join('');
+}
+mkSp('sp1',qhdH);mkSp('sp2',cokeH);mkSp('sp3',marginH);mkSp('sp4',invH);
+
+// ============================================================
+// 价格图表
+// ============================================================
+function buildPriceChart(){
+  pcBuilt=true;
+  const ctx=document.getElementById('priceChart');if(!ctx)return;
+  if(pcObj)pcObj.destroy();
+  const map={qhd:{d:qhdH,c:'#f5a623'},coke:{d:cokeH,c:'#f06060'},coking:{d:cookH,c:'#4a9eff'}};
+  const m=map[pcMode];
+  pcObj=new Chart(ctx,{type:'line',data:{labels:WKS,datasets:[{data:m.d,borderColor:m.c,backgroundColor:m.c+'18',fill:true,borderWidth:2}]},options:chartOpt()});
+}
+function togglePriceChart(mode,btn){
+  pcMode=mode;
+  document.querySelectorAll('#tab-overview .pa .bx').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildPriceChart();
+}
+
+// ============================================================
+// 供给/需求/库存 静态表（模拟数据）
+// ============================================================
+const supData=[
+  {n:'全国原煤产量',v:'38,420万吨',c:'+1.2%',s:'g'},{n:'主产区开工率',v:'76.3%',c:'-0.8%',s:'a'},
+  {n:'进口煤数量',v:'4,230万吨',c:'+8.5%',s:'r'},{n:'矿山产能利用率',v:'82.1%',c:'+0.3%',s:'g'},
+];
+const demData=[
+  {n:'六大电厂日耗煤',v:'78.4万吨',c:'-2.1%',s:'a'},{n:'电厂可用天数',v:'22天',c:'-1天',s:'a'},
+  {n:'高炉开工率',v:'81.2%',c:'-1.5%',s:'r'},{n:'化工用煤景气',v:'偏弱',c:'持平',s:'a'},
+];
+function renderKVTable(id,data){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=`<thead><tr><th>指标</th><th>当期值</th><th>环比</th><th>状态</th></tr></thead><tbody>${
+    data.map(r=>`<tr><td>${r.n}</td><td class="mono">${r.v}</td><td class="${r.c.startsWith('+')?'up':r.c.startsWith('-')?'dn':'fl'} mono">${r.c}</td><td><span class="sdot s${r.s}"></span>${r.s==='g'?'正常':r.s==='a'?'关注':'警示'}</td></tr>`).join('')
+  }</tbody>`;
+}
+renderKVTable('ov-sup',supData);renderKVTable('ov-dem',demData);
+
+const supFull=[
+  ['全国原煤产量','煤炭网','月度','38,420万吨','+1.2%','up'],['内蒙古产量','煤炭网','月度','9,800万吨','+2.1%','up'],
+  ['山西产量','煤炭网','月度','11,200万吨','-0.5%','dn'],['陕西产量','煤炭网','月度','6,500万吨','+3.2%','up'],
+  ['进口煤总量','海关总署','月度（20日）','4,230万吨','+8.5%','up'],['进口澳大利亚','海关总署','月度（20日）','820万吨','+15%','up'],
+  ['进口印尼煤','海关总署','月度（20日）','2,100万吨','+5%','up'],['进口蒙古国','海关总署','月度（20日）','560万吨','+22%','up'],
+  ['主产区开工率','煤炭网','月度','76.3%','-2.1%','dn'],['矿山产能利用率','煤炭网','月度','82.1%','+0.3%','fl'],
+];
+document.getElementById('sup-full').innerHTML=`<thead><tr><th>指标</th><th>来源</th><th>频率</th><th>当期值</th><th>同比</th><th>趋势</th></tr></thead><tbody>${supFull.map(r=>`<tr><td>${r[0]}</td><td style="color:var(--text3)">${r[1]}</td><td style="color:var(--text3)">${r[2]}</td><td class="mono">${r[3]}</td><td class="${r[4].startsWith('+')?'up':'dn'} mono">${r[4]}</td><td class="${r[5]==='up'?'up':r[5]==='dn'?'dn':'fl'}">${r[5]==='up'?'▲':r[5]==='dn'?'▼':'→'}</td></tr>`).join('')}</tbody>`;
+
+const demFull=[
+  ['六大电厂日耗','煤炭网','日度','78.4万吨','-2.1%','dn'],['六大电厂库存','煤炭网','日度','1,830万吨','+5.2%','up'],
+  ['电厂可用天数','煤炭网','日度','22天','+1天','up'],['全国发电量','中电联','月度（15日）','7,820亿度','+3.5%','up'],
+  ['高炉开工率（247家）','煤炭网','周度','81.2%','-1.5%','dn'],['高炉开工率（163家）','煤炭网','周度','78.6%','-2.0%','dn'],
+  ['独立焦化开工率','煤炭网','周度','68.5%','-3.2%','dn'],['化工用煤景气指数','煤炭网','月度','48.2','-1.5','dn'],
+];
+document.getElementById('dem-full').innerHTML=`<thead><tr><th>指标</th><th>来源</th><th>频率</th><th>当期值</th><th>同比</th><th>趋势</th></tr></thead><tbody>${demFull.map(r=>`<tr><td>${r[0]}</td><td style="color:var(--text3)">${r[1]}</td><td style="color:var(--text3)">${r[2]}</td><td class="mono">${r[3]}</td><td class="${r[4].startsWith('+')?'up':'dn'} mono">${r[4]}</td><td class="${r[5]==='up'?'up':r[5]==='dn'?'dn':'fl'}">${r[5]==='up'?'▲':r[5]==='dn'?'▼':'→'}</td></tr>`).join('')}</tbody>`;
+
+const invFull=[
+  ['秦皇岛港口库存','煤炭网','周度','482万吨','偏高','up'],['曹妃甸港口库存','煤炭网','周度','312万吨','正常','fl'],
+  ['六大电厂库存','煤炭网','日度','1,830万吨','偏高','up'],['产地矿山库存','煤炭网','月度','890万吨','正常','fl'],
+  ['焦化企业焦炭库存','煤炭网','周度','125万吨','偏低','dn'],['焦化企业焦煤库存','煤炭网','周度','78万吨','偏低','dn'],
+  ['钢厂焦煤库存天数','煤炭网','周度','18天','正常','fl'],
+];
+document.getElementById('inv-full').innerHTML=`<thead><tr><th>指标</th><th>来源</th><th>频率</th><th>当期值</th><th>库存评估</th><th>趋势</th></tr></thead><tbody>${invFull.map(r=>`<tr><td>${r[0]}</td><td style="color:var(--text3)">${r[1]}</td><td style="color:var(--text3)">${r[2]}</td><td class="mono">${r[3]}</td><td class="${r[4]==='偏高'?'dn':r[4]==='偏低'?'up':'fl'}">${r[4]}</td><td class="${r[5]==='up'?'up':r[5]==='dn'?'dn':'fl'}">${r[5]==='up'?'▲':r[5]==='dn'?'▼':'→'}</td></tr>`).join('')}</tbody>`;
+
+// ============================================================
+// 外生指标（表3）
+// ============================================================
+// 内置默认值（data/weekly.json 不可用时回退）。字段 id 与 weekly.json 对齐。
+const EXO_DEFAULT = [
+  {id:'thermal_power_yoy', l:'火电生产同比增速',  unit:'%',      src:'中电联',    freq:'月(20日)', value:3.5,   change:0.8},
+  {id:'cement_yoy',        l:'水泥产量增速',      unit:'%',      src:'华通人',    freq:'月(20日)', value:-2.1,  change:-0.3},
+  {id:'pig_iron_yoy',      l:'生铁产量增速',      unit:'%',      src:'华通人',    freq:'月(20日)', value:1.8,   change:0.5},
+  {id:'coke_export_yoy',   l:'焦炭出口量增速',    unit:'%',      src:'华通人',    freq:'月(20日)', value:-15.2, change:-3.1},
+  {id:'ammonia_yoy',       l:'合成氨产量增速',    unit:'%',      src:'华通人',    freq:'月(20日)', value:4.2,   change:1.0},
+  {id:'aus_bj_coal',       l:'澳大利亚BJ煤现货价', unit:'USD/吨', src:'资源网',    freq:'月(20日)', value:128.5, change:2.3},
+  {id:'brent_crude',       l:'布伦特原油现货价',   unit:'USD/桶', src:'Bloomberg', freq:'周',       value:82.6,  change:1.4},
+  {id:'qld_japan_freight', l:'昆士兰-日本海运费',  unit:'USD/吨', src:'Clarkson',  freq:'周',       value:9.2,   change:-0.3},
+  {id:'bdi',               l:'波罗的海干散货指数', unit:'点',     src:'Bloomberg', freq:'周',       value:1842,  change:56},
+];
+let exoData = EXO_DEFAULT.slice();
+let exoSourceNote = '内置示例数据';
+let exoLoaded = false;
+
+function fmtExoValue(e){
+  if(e.unit==='%')      return `${e.value}%`;
+  if(e.unit==='USD/吨') return `$${e.value}/t`;
+  if(e.unit==='USD/桶') return `$${e.value}/bbl`;
+  if(e.unit==='点')     return Number(e.value).toLocaleString();
+  return `${e.value}`;
+}
+function fmtExoChange(e){
+  const sign = e.change>=0 ? '+' : '';
+  if(e.unit==='%')      return `${sign}${e.change}%`;
+  if(e.unit==='USD/吨'||e.unit==='USD/桶') return `${sign}$${e.change}`;
+  return `${sign}${e.change}`;
+}
+function exoColor(e){ return e.change>=0 ? 'var(--green)' : 'var(--red)'; }
+
+// 优先读取 data/weekly.json（GitHub Actions / fetch_weekly.py 写入），失败回退默认值
+async function loadExogenous(){
+  try{
+    const resp = await fetch(`data/weekly.json?_=${Date.now()}`, {signal: AbortSignal.timeout(4000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    if(!Array.isArray(json.indicators) || !json.indicators.length) throw new Error('快照为空');
+    const map = {}; json.indicators.forEach(i=>map[i.id]=i);
+    exoData = EXO_DEFAULT.map(d=>{
+      const r = map[d.id];
+      return r ? {...d, value:r.value, change:r.change, src:r.src||d.src, freq:r.freq||d.freq} : d;
+    });
+    exoSourceNote = json.source==='fallback' ? '本地快照·fallback'
+                  : json.source==='mixed'    ? '本地快照·部分真实源'
+                  :                            '本地快照';
+  }catch(e){
+    console.warn('外生指标快照:', e.message);
+    exoData = EXO_DEFAULT.slice();
+    exoSourceNote = '内置示例数据';
+  }
+  exoLoaded = true;
+  renderExogenous();
+  if(typeof renderSpreadTable==='function') renderSpreadTable();   // 外生数据更新后联动比价表
+  if(typeof updateSignals==='function') updateSignals();           // 联动投资信号
+}
+
+function renderExogenous(){
+  const grid=document.getElementById('exo-grid');
+  if(!grid) return;
+  grid.innerHTML=exoData.map(e=>`
+    <div class="exo-item">
+      <div class="exo-l">${e.l}</div>
+      <div class="exo-v" style="color:${exoColor(e)}">${fmtExoValue(e)}</div>
+      <div class="exo-s">${fmtExoChange(e)} · ${e.src} · ${e.freq}</div>
+    </div>`).join('');
+  const tbl=document.getElementById('exo-table');
+  if(!tbl) return;
+  tbl.innerHTML=`<thead><tr><th>指标</th><th>当期值</th><th>变动</th><th>来源</th><th>频度</th><th>备注</th></tr></thead><tbody>${exoData.map(e=>`
+    <tr><td>${e.l}</td>
+    <td class="mono" style="color:${exoColor(e)}">${fmtExoValue(e)}</td>
+    <td class="${e.change>=0?'up':'dn'} mono">${fmtExoChange(e)}</td>
+    <td style="color:var(--text3)">${e.src}</td>
+    <td style="color:var(--text3)">${e.freq}</td>
+    <td style="color:var(--text3)">${exoSourceNote}</td></tr>`).join('')}</tbody>`;
+}
+function refreshExogenous(){ loadExogenous().then(()=>showToast('外生指标已刷新')); }
+
+// 取外生指标数值（来自 weekly.json / 内置默认）
+function getExo(id){ const e=exoData.find(x=>x.id===id); return e&&e.value!=null?Number(e.value):null; }
+// 进口成本模型（透明、可调）：澳煤BJ6300到岸完税成本 → 折算到国内5500大卡可比口径
+// 进口平价：CIF(FOB+海运费)×汇率 → ×(1+关税)×(1+增值税) + 港杂费 → ×热值折算
+const IMPORT_MODEL={
+  fx:7.2,           // 美元兑人民币汇率
+  vat:0.13,         // 进口增值税率
+  tariff:0,         // 进口关税率（现行动力煤多为零关税，可调）
+  port:50,          // 港杂费(元/吨)
+  calo:5500/6300,   // 热值折算系数(BJ6300 → 国内5500大卡)
+};
+const COAL_OIL_REF=1.25;                              // 煤油比价参考均值
+// 由期货 + 外生指标计算的派生比价指标
+function exoMetrics(){
+  const data=STATE.futuresData.length?STATE.futuresData:futFallback;
+  const zc=data.find(d=>d.sym.startsWith('ZC'))||{price:786};
+  const aus=getExo('aus_bj_coal'), freight=getExo('qld_japan_freight'), brent=getExo('brent_crude');
+  const M=IMPORT_MODEL;
+  let impLanded=null, impSpread=null, impTax=null, coalOil=null;
+  if(aus!=null && freight!=null){
+    const cif=(aus+freight)*M.fx;                          // CIF人民币(6300口径)
+    const taxed=cif*(1+M.tariff)*(1+M.vat)+M.port;          // 含税完税成本
+    impLanded=Math.round(taxed*M.calo);                     // 折算到国内5500口径
+    impTax=Math.round((taxed-cif-M.port)*M.calo);           // 其中税负(关税+增值税)折后
+    impSpread=Math.round(zc.price-impLanded);               // 国内价 - 到岸完税成本
+  }
+  if(brent!=null) coalOil=+(zc.price/(brent*M.fx)).toFixed(2);   // 煤价/油价(同币种)
+  return {zcPrice:zc.price, aus, freight, brent, impLanded, impTax, impSpread, coalOil};
+}
+
+// ============================================================
+// 比价关系
+// ============================================================
+// 比价表 —— 由实时期货 + 外生指标(weekly.json) 计算，缺数据自动回退占位行
+function renderSpreadTable(){
+  const data=STATE.futuresData.length?STATE.futuresData:futFallback;
+  const j=data.find(d=>d.sym.startsWith('J')&&!d.sym.startsWith('JM')&&d.ex==='dce')||{price:1816};
+  const jm=data.find(d=>d.sym.startsWith('JM')&&d.ex==='dce')||{price:1294};
+  const m=exoMetrics();
+
+  const ratio=j.price/jm.price;                          // 焦炭/焦煤比价
+  const cokeMargin=Math.round(j.price-jm.price*1.35-450);// 焦化综合利润
+
+  const rows=[];
+  rows.push(['焦炭/炼焦煤比价', ratio.toFixed(2), '1.45', ratio<1.45?'偏低':'偏高', ratio<1.45?'多焦炭 空焦煤':'比价偏高', ratio<1.45?'up':'dn']);
+  rows.push(['焦化综合利润', cokeMargin+'元/吨', '+120元/吨', cokeMargin<-50?'深度亏损':cokeMargin<0?'亏损':'盈利', cokeMargin<0?'关注修复时点':'利润修复', cokeMargin<0?'dn':'up']);
+  if(m.impSpread!=null)
+    rows.push(['动力煤/澳煤价差', (m.impSpread>=0?'+':'')+m.impSpread+'元/吨', `到岸${m.impLanded}·税${m.impTax}`, m.impSpread>=0?'进口有利':'窗口关闭', m.impSpread>=0?'进口套利可为':'进口不划算', m.impSpread>=0?'up':'dn']);
+  else
+    rows.push(['动力煤/澳煤价差','—','—','缺数据','等待外生数据','fl']);
+  if(m.coalOil!=null)
+    rows.push(['煤油比价(煤/油)', m.coalOil.toFixed(2), COAL_OIL_REF.toFixed(2), m.coalOil>COAL_OIL_REF?'偏高':'偏低', m.coalOil>COAL_OIL_REF?'煤相对油偏贵':'煤相对油偏便宜', m.coalOil>COAL_OIL_REF?'dn':'up']);
+  else
+    rows.push(['煤油比价(煤/油)','—','—','缺数据','等待外生数据','fl']);
+  rows.push(['螺纹钢炉料利润','-120元/吨','+50元/吨','亏损','黑色系偏空','dn']);
+
+  document.getElementById('spread-t').innerHTML=`<thead><tr><th>比价关系</th><th>当前值</th><th>历史均值/参考</th><th>评估</th><th>套利方向</th><th>趋势</th></tr></thead><tbody>${rows.map(r=>{
+    const tc=r[5]==='up'?'up':r[5]==='dn'?'dn':'fl', arrow=r[5]==='up'?'▲':r[5]==='dn'?'▼':'→';
+    return `<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td style="color:var(--text3);font-family:var(--mono)">${r[2]}</td><td class="${tc} mono">${r[3]}</td><td class="${tc}">${r[4]}</td><td class="${tc}">${arrow}</td></tr>`;
+  }).join('')}</tbody>`;
+
+  // 进口成本模型假设（透明化，写入面板副标题）
+  const note=document.getElementById('spread-note');
+  if(note) note.textContent = m.impLanded!=null
+    ? `进口成本模型 · 汇率${IMPORT_MODEL.fx} · 增值税${(IMPORT_MODEL.vat*100).toFixed(0)}% · 港杂${IMPORT_MODEL.port} · 热值5500/6300`
+    : 'SPREAD MONITOR';
+
+  // 顶部 KPI 卡片
+  document.getElementById('ratio-jjm').textContent=ratio.toFixed(2);
+  document.getElementById('ratio-jjm-s').innerHTML=`均值1.45 <span class="${ratio<1.45?'dn':'up'}">${ratio<1.45?'偏低':'偏高'}</span>`;
+  document.getElementById('coking-margin').style.color=cokeMargin<0?'var(--red)':'var(--green)';
+  document.getElementById('coking-margin').textContent=cokeMargin;
+  document.getElementById('coking-margin-s').innerHTML=`元/吨 <span class="${cokeMargin<0?'dn':'up'}">${cokeMargin<0?'亏损':'盈利'}</span>`;
+  if(m.coalOil!=null){
+    document.getElementById('coal-oil-kpi').textContent=m.coalOil.toFixed(2);
+    document.getElementById('coal-oil-kpi-s').innerHTML=`参考${COAL_OIL_REF} <span class="${m.coalOil>COAL_OIL_REF?'dn':'up'}">${m.coalOil>COAL_OIL_REF?'偏贵':'偏便宜'}</span>`;
+  }
+}
+
+// ============================================================
+// 期货行情 —— 接入东方财富公开接口（CORS友好）
+// ============================================================
+
+// 期货合约代码映射（东方财富）
+const FUT_CODES = {
+  'ZC0': { name:'动力煤主力', ex:'zce', sym:'ZC' },
+  'J0':  { name:'焦炭主力',   ex:'dce', sym:'J'  },
+  'JM0': { name:'焦煤主力',   ex:'dce', sym:'JM' },
+};
+
+// 模拟期货数据（API失败时的fallback）
+const futFallback=[
+  {ex:'zce',sym:'ZC2509',name:'动力煤2509',price:786,chg:12,pct:1.55,vol:182400,oi:856000,basis:1},
+  {ex:'zce',sym:'ZC2511',name:'动力煤2511',price:778,chg:8,pct:1.04,vol:42100,oi:210000,basis:-7},
+  {ex:'zce',sym:'ZC2601',name:'动力煤2601',price:772,chg:5,pct:0.65,vol:18600,oi:98000,basis:-13},
+  {ex:'dce',sym:'J2509', name:'焦炭2509',  price:1816,chg:-28,pct:-1.52,vol:224000,oi:1020000,basis:4},
+  {ex:'dce',sym:'J2511', name:'焦炭2511',  price:1798,chg:-18,pct:-0.99,vol:68000,oi:380000,basis:-22},
+  {ex:'dce',sym:'JM2509',name:'焦煤2509',  price:1294,chg:-14,pct:-1.07,vol:196000,oi:880000,basis:6},
+  {ex:'dce',sym:'JM2511',name:'焦煤2511',  price:1280,chg:-8,pct:-0.62,vol:54000,oi:320000,basis:-20},
+];
+
+async function fetchFuturesFromLocal() {
+  // 优先读取 GitHub Actions 写入的本地快照 data/futures.json
+  try {
+    const resp = await fetch(`data/futures.json?_=${Date.now()}`, {signal: AbortSignal.timeout(4000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    const arr = json.contracts;
+    if(!Array.isArray(arr) || arr.length < 4) throw new Error('快照数据不足');
+    return arr.map(c => ({
+      sym: c.sym, name: c.name, ex: c.ex,
+      price: +c.price, chg: +c.chg, pct: +c.pct,
+      vol: +c.vol || 0, oi: +c.oi || 0,
+      basis: c.basis != null ? +c.basis : 0,
+      _source: json.source,
+    }));
+  } catch(e) {
+    console.warn('本地期货快照:', e.message);
+    return null;
+  }
+}
+
+async function fetchFuturesFromEF() {
+  // 东方财富期货行情接口（支持跨域）
+  const codes = ['ZC0','J0','JM0']; // 主力合约
+  const symbol = codes.map(c=>c).join(',');
+  try {
+    const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f12,f14,f15,f16,f17,f18,f152&secids=${codes.map(c=>`113.${c}`).join(',')}&_=${Date.now()}`;
+    const resp = await fetch(url, {signal: AbortSignal.timeout(6000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    if(!json.data?.diff) throw new Error('无数据');
+    return json.data.diff;
+  } catch(e) {
+    console.warn('东方财富期货接口:', e.message);
+    return null;
+  }
+}
+
+async function fetchFuturesFromSina(contracts) {
+  // 新浪财经期货接口
+  try {
+    const syms = contracts.map(c=>`nf_${c}`).join(',');
+    const url = `https://hq.sinajs.cn/list=${syms}`;
+    const resp = await fetch(url, {signal: AbortSignal.timeout(6000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const text = await resp.text();
+    return text;
+  } catch(e) {
+    console.warn('新浪期货接口:', e.message);
+    return null;
+  }
+}
+
+function setApiDot(id, state) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.className = `api-dot ${state}`;
+}
+
+async function refreshFutures() {
+  setApiDot('dot-ef','load');
+  setApiDot('dot-sina','load');
+  document.getElementById('fut-update-time').textContent = '加载中...';
+
+  let loaded = false;
+
+  // 1) 优先：本地快照 data/futures.json（GitHub Actions 写入）
+  const localData = await fetchFuturesFromLocal();
+  if(localData){
+    STATE.futuresData = localData;
+    STATE.futuresLoaded = true;
+    loaded = true;
+    setApiDot('dot-ef','ok');
+    const fb = localData[0]?._source === 'fallback';
+    document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 本地快照' + (fb?'（脚本fallback）':'（AKShare）');
+  }
+
+  // 2) 降级：东方财富实时接口
+  const efData = loaded ? null : await fetchFuturesFromEF();
+  if(efData && efData.length > 0) {
+    // 解析东方财富数据格式
+    const parsed = efData.map(item => ({
+      sym: item.f12,
+      name: item.f14,
+      price: item.f2 / 100,
+      chg: item.f4 / 100,
+      pct: item.f3 / 100,
+      vol: item.f5,
+      oi: item.f18 || 0,
+      basis: 0,
+      ex: item.f12.match(/^(J|JM)/i) ? 'dce' : 'zce',
+    }));
+    if(parsed.length > 0) {
+      STATE.futuresData = parsed;
+      STATE.futuresLoaded = true;
+      loaded = true;
+      setApiDot('dot-ef','ok');
+      document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 东方财富实时';
+    }
+  }
+
+  if(!loaded) {
+    setApiDot('dot-ef','err');
+  }
+  setApiDot('dot-sina', loaded ? 'ok' : 'err');
+
+  // 无论API是否成功，使用fallback模拟数据补充缺失合约
+  if(!loaded || STATE.futuresData.length < 4) {
+    STATE.futuresData = futFallback;
+    STATE.futuresLoaded = false;
+    document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 模拟数据（行情接口受限）';
+    setApiDot('dot-ef','err');
+    setApiDot('dot-sina','err');
+  }
+
+  renderFuturesUI();
+  updateFutKPIs();
+
+  const t = new Date();
+  STATE.lastFutUpdate = t;
+  document.getElementById('fut-update-time').textContent = `最后更新 ${t.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  updateMainBadge();
+}
+
+function updateFutKPIs() {
+  const data = STATE.futuresData;
+  const zc = data.find(d=>d.sym.startsWith('ZC')&&d.ex==='zce') || data[0];
+  const j  = data.find(d=>d.sym.startsWith('J')&&!d.sym.startsWith('JM')&&d.ex==='dce');
+  const jm = data.find(d=>d.sym.startsWith('JM')&&d.ex==='dce');
+  if(zc){
+    document.getElementById('fut-zc').textContent=zc.price.toLocaleString();
+    document.getElementById('fut-zc-s').innerHTML=`<span class="${zc.pct>=0?'up':'dn'}">${zc.pct>=0?'▲':'▼'} ${Math.abs(zc.pct).toFixed(2)}%</span>`;
+  }
+  if(j){
+    document.getElementById('fut-j').textContent=j.price.toLocaleString();
+    document.getElementById('fut-j-s').innerHTML=`<span class="${j.pct>=0?'up':'dn'}">${j.pct>=0?'▲':'▼'} ${Math.abs(j.pct).toFixed(2)}%</span>`;
+  }
+  if(jm){
+    document.getElementById('fut-jm').textContent=jm.price.toLocaleString();
+    document.getElementById('fut-jm-s').innerHTML=`<span class="${jm.pct>=0?'up':'dn'}">${jm.pct>=0?'▲':'▼'} ${Math.abs(jm.pct).toFixed(2)}%</span>`;
+  }
+  if(j&&jm){
+    const spread=Math.round(j.price-jm.price*1.35);
+    document.getElementById('fut-spread').style.color=spread<0?'var(--red)':'var(--text)';
+    document.getElementById('fut-spread').textContent=spread>0?'+'+spread:spread;
+    document.getElementById('fut-spread-s').innerHTML=`<span class="${spread<0?'dn':'up'}">${spread<0?'亏损':'盈利'} ${Math.abs(spread)}元/吨</span>`;
+  }
+  // 更新总览KPI
+  if(zc){
+    document.getElementById('k1').textContent=zc.price.toLocaleString();
+    document.getElementById('k1m').innerHTML=`元/吨 <span class="${zc.pct>=0?'up':'dn'}">${zc.pct>=0?'▲':'▼'} ${Math.abs(zc.pct).toFixed(2)}%</span>`;
+  }
+  if(j){
+    document.getElementById('k2').textContent=j.price.toLocaleString();
+    document.getElementById('k2m').innerHTML=`元/吨 <span class="${j.pct>=0?'up':'dn'}">${j.pct>=0?'▲':'▼'} ${Math.abs(j.pct).toFixed(2)}%</span>`;
+  }
+}
+
+let futDisplayMode = 'all';
+function filterFut(type,btn){
+  futDisplayMode=type;
+  document.querySelectorAll('#tab-futures .pa .bx').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFuturesUI();
+}
+function renderFuturesUI(){
+  const data = STATE.futuresData.length ? STATE.futuresData : futFallback;
+  const filtered = futDisplayMode==='all' ? data : data.filter(d=>d.ex===futDisplayMode);
+  const mx=Math.max(...filtered.map(d=>d.vol||1));
+  document.getElementById('fut-tbody').innerHTML=filtered.map(d=>{
+    const exB=d.ex==='zce'?`<span style="font-size:9px;font-family:var(--mono);color:var(--accent);background:rgba(245,166,35,.1);padding:1px 4px;border-radius:2px;margin-left:4px">郑</span>`:`<span style="font-size:9px;font-family:var(--mono);color:var(--blue);background:rgba(74,158,255,.1);padding:1px 4px;border-radius:2px;margin-left:4px">大</span>`;
+    const bw=Math.round(((d.vol||0)/mx)*55);
+    const bc=d.basis>0?`<span class="tag tag-g">+${d.basis}</span>`:d.basis<0?`<span class="tag tag-r">${d.basis}</span>`:`<span class="fl">0</span>`;
+    return`<tr><td><div style="font-size:12px;font-weight:500;color:var(--text)">${d.name}${exB}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${d.sym}</div></td><td><span class="mono" style="font-size:13px;font-weight:500;color:${d.chg>0?'var(--green)':d.chg<0?'var(--red)':'var(--text)'}">${(+d.price).toLocaleString()}</span></td><td class="${d.chg>0?'up':d.chg<0?'dn':'fl'} mono">${d.chg>0?'+':''}${(+d.chg).toFixed(0)}</td><td class="${d.pct>0?'up':d.pct<0?'dn':'fl'} mono">${d.pct>0?'▲':'▼'} ${Math.abs(d.pct).toFixed(2)}%</td><td><div style="display:flex;align-items:center;gap:5px"><div class="vbar" style="width:${bw}px"></div><span class="mono" style="font-size:10px">${((d.vol||0)/10000).toFixed(1)}万</span></div></td><td class="mono" style="font-size:10px;color:var(--text2)">${((d.oi||0)/10000).toFixed(0)}万</td><td>${bc}</td></tr>`;
+  }).join('');
+}
+// 套利监控（静态）
+const arbD=[
+  ['ZC09-ZC11 正套',786,778,8,5,'+3','可正套','up'],
+  ['J09-J11 正套',1816,1798,18,12,'+6','正套正常','fl'],
+  ['JM09-JM11 正套',1294,1280,14,10,'+4','可正套','up'],
+  ['J-JM 利润套利',1816,1294,-85,120,'-205','多焦炭','dn'],
+];
+document.getElementById('arb-tbody').innerHTML=arbD.map(r=>`<tr><td style="font-weight:500">${r[0]}</td><td class="mono">${r[1].toLocaleString()}</td><td class="mono">${r[2].toLocaleString()}</td><td class="${r[3]>0?'up':'dn'} mono" style="font-size:12px;font-weight:500">${r[3]>0?'+':''}${r[3]}</td><td class="mono" style="color:var(--text3)">${r[4]}</td><td class="${r[5].startsWith('+')?'up':'dn'} mono">${r[5]}</td><td class="${r[6]==='up'?'up':r[6]==='dn'?'dn':'fl'}">${r[7]}</td></tr>`).join('');
+
+function buildFutCharts(){
+  fcBuilt=true;
+  const ctx1=document.getElementById('zcCurve');
+  if(ctx1) new Chart(ctx1,{type:'line',data:{labels:['ZC现货','ZC2508','ZC2509','ZC2511','ZC2601','ZC2603'],datasets:[{data:[785,788,786,778,772,768],borderColor:'#f5a623',backgroundColor:'#f5a62318',fill:true,borderWidth:2,tension:.3,pointRadius:4,pointBackgroundColor:'#f5a623'}]},options:chartOpt()});
+  buildLineChart('spreadFut',spreadFutH,'#a78bfa',135);
+}
+
+// ============================================================
+// 股票行情 —— 接入东方财富公开接口
+// ============================================================
+const COAL_STOCKS = [
+  {n:'中国神华',code:'601088',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:10.2,pb:1.8,div:'7.2%',cap:8240,sector:'thermal',h:[]},
+  {n:'陕西煤业',code:'601225',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:9.1,pb:2.1,div:'6.8%',cap:2910,sector:'thermal',h:[]},
+  {n:'中煤能源',code:'601898',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:8.4,pb:1.2,div:'5.9%',cap:1420,sector:'mixed',h:[]},
+  {n:'山煤国际',code:'600546',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:7.8,pb:1.6,div:'8.1%',cap:362,sector:'thermal',h:[]},
+  {n:'平煤股份',code:'601666',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:11.2,pb:1.4,div:'4.2%',cap:618,sector:'coking',h:[]},
+  {n:'淮北矿业',code:'600985',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:8.9,pb:1.5,div:'6.5%',cap:482,sector:'coking',h:[]},
+  {n:'兖矿能源',code:'600188',market:'sh',price:0,chg:0,pct:0,vol:'—',pe:9.6,pb:2.2,div:'7.8%',cap:1980,sector:'mixed',h:[]},
+  {n:'冀中能源',code:'000937',market:'sz',price:0,chg:0,pct:0,vol:'—',pe:12.4,pb:1.1,div:'3.8%',cap:298,sector:'coking',h:[]},
+];
+
+async function fetchStocksFromLocal() {
+  // 优先读取 GitHub Actions 写入的本地快照 data/stocks.json
+  try {
+    const resp = await fetch(`data/stocks.json?_=${Date.now()}`, {signal: AbortSignal.timeout(4000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    const arr = json.stocks;
+    if(!Array.isArray(arr) || !arr.length) throw new Error('快照为空');
+    arr.forEach(item => {
+      const st = COAL_STOCKS.find(s=>s.code===item.code);
+      if(st){
+        st.price = +item.price || st.price;
+        st.chg   = +item.chg || 0;
+        st.pct   = +item.pct || 0;
+        if(item.volume)     st.vol = `${(item.volume/1e4).toFixed(1)}万手`;
+        if(item.market_cap) st.cap = Math.round(item.market_cap/1e8);
+        if(item.pe)         st.pe  = +item.pe;
+        if(item.pb)         st.pb  = +item.pb;
+        if(!st.h.length)    st.h   = rw(st.price, st.price*0.02, 12);
+      }
+    });
+    return {source: json.source};
+  } catch(e) {
+    console.warn('本地股票快照:', e.message);
+    return null;
+  }
+}
+
+async function refreshStocks() {
+  setApiDot('dot-stock','load');
+  document.getElementById('stock-update-time').textContent='加载中...';
+
+  // 1) 优先：本地快照 data/stocks.json
+  const localStock = await fetchStocksFromLocal();
+  if(localStock){
+    STATE.stocksData = COAL_STOCKS.filter(s=>s.price>0);
+    STATE.stocksLoaded = true;
+    setApiDot('dot-stock','ok');
+    document.getElementById('stock-market-dot').style.background='var(--green)';
+    document.getElementById('stock-market-status').textContent =
+      localStock.source==='fallback' ? 'A股行情（本地快照·fallback）' : 'A股行情（本地快照）';
+    const t=new Date();
+    STATE.lastStockUpdate=t;
+    document.getElementById('stock-update-time').textContent=`最后更新 ${t.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+    renderStocksUI();
+    updateMainBadge();
+    return;
+  }
+
+  // 2) 降级：东方财富实时接口
+  const secids = COAL_STOCKS.map((s,i)=>`${s.market==='sh'?1:0}.${s.code}`).join(',');
+  const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f12,f14,f5,f6,f9,f23&secids=${secids}&_=${Date.now()}`;
+
+  try {
+    const resp = await fetch(url, {signal: AbortSignal.timeout(7000)});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const json = await resp.json();
+    const diff = json.data?.diff;
+    if(!diff || !diff.length) throw new Error('无数据');
+
+    // 匹配并更新股票数据
+    diff.forEach(item => {
+      const st = COAL_STOCKS.find(s=>s.code===item.f12);
+      if(st){
+        st.price = item.f2 / 100;
+        st.chg   = item.f4 / 100;
+        st.pct   = item.f3 / 100;
+        st.vol   = item.f5 ? `${(item.f5/100).toFixed(1)}万手` : '—';
+        st.cap   = item.f6 ? Math.round(item.f6/1e8) : st.cap;
+        st.pe    = item.f9 ? item.f9/100 : st.pe;
+        st.pb    = item.f23 ? item.f23/100 : st.pb;
+        if(!st.h.length) st.h=rw(st.price,st.price*0.02,12);
+        else { st.h=st.h.slice(1); st.h.push(Math.round(st.price*100)/100); }
+      }
+    });
+    STATE.stocksData = COAL_STOCKS.filter(s=>s.price>0);
+    STATE.stocksLoaded = true;
+    setApiDot('dot-stock','ok');
+    document.getElementById('stock-market-dot').style.background='var(--green)';
+    document.getElementById('stock-market-status').textContent='A股实时行情';
+  } catch(e) {
+    console.warn('股票接口:', e.message);
+    setApiDot('dot-stock','err');
+    // 使用模拟数据
+    COAL_STOCKS.forEach(s=>{
+      if(!s.price){
+        s.price = {601088:38.42,601225:24.16,601898:11.28,600546:16.42,601666:9.84,600985:22.56,600188:31.20,'000937':8.62}[s.code]||20;
+        s.chg = +(Math.random()-.5).toFixed(2);
+        s.pct = +(s.chg/s.price*100).toFixed(2);
+        s.h = rw(s.price, s.price*0.02, 12);
+      }
+    });
+    STATE.stocksData = COAL_STOCKS;
+    document.getElementById('stock-market-status').textContent='A股行情（模拟数据）';
+  }
+
+  const t=new Date();
+  STATE.lastStockUpdate=t;
+  document.getElementById('stock-update-time').textContent=`最后更新 ${t.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  renderStocksUI();
+  updateMainBadge();
+}
+
+const sL={thermal:'动力煤',coking:'焦煤焦炭',mixed:'综合煤企'};
+const sC={thermal:'var(--accent)',coking:'var(--blue)',mixed:'var(--teal)'};
+let stockFilter='all';
+function filterSt(type,btn){
+  stockFilter=type;
+  document.querySelectorAll('#tab-stocks>div:nth-child(3) .bx').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStocksUI();
+}
+function renderStocksUI(){
+  const stocks = STATE.stocksData.length ? STATE.stocksData : COAL_STOCKS;
+  const filtered = stockFilter==='all' ? stocks : stocks.filter(s=>s.sector===stockFilter);
+  document.getElementById('stock-grid').innerHTML=filtered.map(s=>{
+    const up=s.pct>=0,col=up?'var(--green)':'var(--red)';
+    const h=s.h.length?s.h:rw(s.price||20,0.5,12);
+    const mx=Math.max(...h),mn=Math.min(...h);
+    const bars=h.map((v,i)=>{const ht=Math.max(3,Math.round(((v-mn)/(mx-mn+.01))*18));return`<div style="width:5px;height:${ht}px;border-radius:1px;background:${i===h.length-1?col:'var(--ovr2)'};opacity:${i===h.length-1?1:.7}"></div>`;}).join('');
+    return`<div class="sc"><div class="sc-head"><div><div class="sc-name">${s.n}</div><div class="sc-code">${s.code}.${s.market.toUpperCase()}</div></div><span style="font-size:9px;font-family:var(--mono);padding:2px 5px;border-radius:3px;background:var(--ovr);color:${sC[s.sector]};border:1px solid var(--border2)">${sL[s.sector]}</span></div><div class="sc-price" style="color:${col}">${s.price>0?s.price.toFixed(2):'—'}</div><div style="display:flex;align-items:center;gap:7px"><span style="font-size:11px;font-family:var(--mono);color:${col}">${up?'▲':'▼'} ${Math.abs(s.chg).toFixed(2)} (${up?'+':''}${s.pct.toFixed(2)}%)</span><span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${s.vol}</span></div><div style="display:flex;align-items:flex-end;gap:1.5px;height:18px;margin-top:7px">${bars}</div><div class="sc-meta"><div class="sc-mi"><div class="sc-ml">PE</div><div class="sc-mv">${s.pe}x</div></div><div class="sc-mi"><div class="sc-ml">PB</div><div class="sc-mv">${s.pb}x</div></div><div class="sc-mi"><div class="sc-ml">股息</div><div class="sc-mv" style="color:var(--green)">${s.div}</div></div><div class="sc-mi"><div class="sc-ml">市值</div><div class="sc-mv">${s.cap}亿</div></div></div></div>`;
+  }).join('');
+
+  document.getElementById('val-tbody').innerHTML=filtered.map(s=>{
+    const up=s.pct>=0;
+    const rat=s.pe<9?`<span class="up mono" style="font-size:11px">买入</span>`:s.pe<12?`<span class="fl mono" style="font-size:11px;color:var(--accent)">持有</span>`:`<span class="dn mono" style="font-size:11px">观察</span>`;
+    return`<tr><td><span style="font-weight:500">${s.n}</span><span style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-left:6px">${s.code}</span></td><td class="mono" style="color:${up?'var(--green)':'var(--red)'}">${s.price>0?s.price.toFixed(2):'—'}</td><td class="${up?'up':'dn'} mono">${up?'+':''}${s.pct.toFixed(2)}%</td><td class="mono">${s.pe}x</td><td class="mono">${s.pb}x</td><td class="mono" style="color:var(--green)">${s.div}</td><td class="mono" style="color:var(--text2)">${s.cap}</td><td>${rat}</td></tr>`;
+  }).join('');
+}
+
+// ============================================================
+// 状态徽章
+// ============================================================
+function updateMainBadge(){
+  const badge=document.getElementById('main-badge');
+  if(STATE.futuresLoaded||STATE.stocksLoaded){
+    badge.className='badge-live live';
+    badge.innerHTML='<span class="live-dot"></span>实时';
+  } else {
+    badge.className='badge-live sample';
+    badge.innerHTML='SAMPLE';
+  }
+}
+
+async function refreshAllData(){
+  await Promise.all([refreshFutures(), refreshStocks(), loadExogenous(), computeEntrySignals()]);
+  updateSignals();
+}
+
+// ============================================================
+// 数据录入 & IndexedDB
+// ============================================================
+let db=null;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open('coal_tracker',2);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('entries')){
+        d.createObjectStore('entries',{keyPath:'id',autoIncrement:true});
+      }
+    };
+    req.onsuccess=e=>{db=e.target.result;res(db);};
+    req.onerror=e=>rej(e);
+  });
+}
+async function getAllEntries(){
+  await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('entries','readonly');
+    const req=tx.objectStore('entries').getAll();
+    req.onsuccess=e=>res(e.target.result||[]);
+    req.onerror=e=>rej(e);
+  });
+}
+async function addEntry(entry){
+  await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('entries','readwrite');
+    const req=tx.objectStore('entries').add(entry);
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e);
+  });
+}
+async function delEntryDB(id){
+  await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('entries','readwrite');
+    const req=tx.objectStore('entries').delete(id);
+    req.onsuccess=()=>res();
+    req.onerror=e=>rej(e);
+  });
+}
+async function clearAllDB(){
+  await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction('entries','readwrite');
+    const req=tx.objectStore('entries').clear();
+    req.onsuccess=()=>res();
+    req.onerror=e=>rej(e);
+  });
+}
+
+async function renderHist(){
+  const tbody=document.getElementById('hist-tbody');if(!tbody)return;
+  const entries=await getAllEntries();
+  document.getElementById('record-count').textContent=`${entries.length}条记录`;
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:18px;font-family:var(--mono);font-size:11px">暂无录入记录</td></tr>';return;}
+  tbody.innerHTML=[...entries].reverse().map(r=>`<tr>
+    <td class="mono" style="font-size:11px">${r.date}</td>
+    <td class="mono">${r.qhd||'—'}</td>
+    <td class="mono">${r.coke||'—'}</td>
+    <td class="mono">${r.coking||'—'}</td>
+    <td class="mono">${r.inv||'—'}</td>
+    <td class="mono">${r.cons||'—'}</td>
+    <td><span style="color:var(--red);cursor:pointer;font-family:var(--mono)" onclick="delEntry(${r.id})">×</span></td>
+  </tr>`).join('');
+}
+async function delEntry(id){await delEntryDB(id);renderHist();refreshSignalsFromEntries();}
+async function saveEntry(){
+  const entry={
+    date:document.getElementById('e-date').value||new Date().toISOString().split('T')[0],
+    qhd:document.getElementById('e-qhd').value,
+    coking:document.getElementById('e-coking').value,
+    coke:document.getElementById('e-coke').value,
+    inv:document.getElementById('e-inv').value,
+    cons:document.getElementById('e-cons').value,
+    prod:document.getElementById('e-prod').value,
+    imp:document.getElementById('e-imp').value,
+    rebar:document.getElementById('e-rebar').value,
+    createdAt:new Date().toISOString(),
+  };
+  await addEntry(entry);
+  await renderHist();
+  await refreshSignalsFromEntries();
+  showToast('✓ 数据已保存至 IndexedDB');
+}
+function clearEntry(){['e-date','e-qhd','e-coking','e-coke','e-inv','e-cons','e-prod','e-imp','e-rebar'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});}
+async function clearAllData(){
+  if(!confirm('确认清空所有录入记录？此操作不可撤销。')) return;
+  await clearAllDB();
+  renderHist();
+  await refreshSignalsFromEntries();
+  showToast('✓ 已清空全部记录');
+}
+
+// ============================================================
+// 录入数据 → 投资信号（库存/供给/需求 维度数据驱动）
+// ============================================================
+const INV_REF=450, INV_BAND=0.07;   // 港口库存参考均值(万吨)与带宽(±7%)
+const ENV_THRESH=0.02;              // 环比变动阈值(±2%)
+let entrySig=null;                  // 由录入数据计算的信号；null=无录入数据→走静态默认
+
+async function computeEntrySignals(){
+  let entries=[];
+  try{ entries=await getAllEntries(); }catch(e){ entrySig=null; return; }
+  if(!entries.length){ entrySig=null; return; }
+  const sorted=[...entries].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const cur=sorted[sorted.length-1], prev=sorted.length>1?sorted[sorted.length-2]:null;
+  const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
+  const sig={};
+
+  // 库存压力（港口库存绝对值 vs 参考均值）
+  const inv=num(cur.inv);
+  if(inv!=null){
+    const hi=INV_REF*(1+INV_BAND), lo=INV_REF*(1-INV_BAND);
+    if(inv>hi)       sig.inv={score:3,dir:'▼',color:'dn',text:'去库缓慢',c:'var(--red)',  val:inv,desc:`港口库存 ${inv} 万吨（>均值${INV_REF}），阶段性承压`};
+    else if(inv<lo)  sig.inv={score:7,dir:'▲',color:'up',text:'低位补库',c:'var(--green)',val:inv,desc:`港口库存 ${inv} 万吨（<均值${INV_REF}），库存利好`};
+    else             sig.inv={score:5,dir:'→',color:'fl',text:'库存中性',c:'var(--accent)',val:inv,desc:`港口库存 ${inv} 万吨，接近历史均值`};
+  }
+
+  // 供给紧张度（产量+进口 环比；供给放量→紧张度下降）
+  const supCur=(num(cur.prod)||0)+(num(cur.imp)||0);
+  const supPrev=prev?((num(prev.prod)||0)+(num(prev.imp)||0)):null;
+  if(supCur && supPrev){
+    const chg=(supCur-supPrev)/supPrev;
+    if(chg>ENV_THRESH)       sig.supply={score:3,dir:'▼',color:'dn'};   // 放量→宽松
+    else if(chg<-ENV_THRESH) sig.supply={score:7,dir:'▲',color:'up'};   // 收缩→偏紧
+    else                     sig.supply={score:5,dir:'→',color:'fl'};
+  }
+
+  // 需求强度（电厂日耗 环比）
+  const dCur=num(cur.cons), dPrev=prev?num(prev.cons):null;
+  if(dCur!=null && dPrev!=null){
+    const chg=(dCur-dPrev)/dPrev;
+    if(chg>ENV_THRESH)       sig.demand={score:7,dir:'▲',color:'up'};
+    else if(chg<-ENV_THRESH) sig.demand={score:3,dir:'▼',color:'dn'};
+    else                     sig.demand={score:5,dir:'→',color:'fl'};
+  }
+
+  entrySig=sig;
+}
+
+// 录入数据变更后重算信号并刷新信号页
+async function refreshSignalsFromEntries(){
+  await computeEntrySignals();
+  updateSignals();
+}
+
+// ============================================================
+// CSV 模板下载
+// ============================================================
+function downloadTemplate(){
+  const header='date,qhd_price,coking_price,coke_price,port_inventory,power_consumption,raw_production,coal_import,rebar_price';
+  const example='2025-06-01,785,1300,1820,482,78,38000,4200,3650';
+  const note='# 煤炭中观数据追踪系统 - 批量导入模板\n# 字段说明: date=日期, qhd_price=动力煤(元/吨), coking_price=炼焦煤, coke_price=焦炭, port_inventory=港口库存(万吨), power_consumption=电厂日耗(万吨), raw_production=原煤产量(万吨/月), coal_import=进口煤(万吨/月), rebar_price=螺纹钢(元/吨)\n';
+  const csv=note+header+'\n'+example+'\n';
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='coal_tracker_template.csv';a.click();
+  showToast('✓ 模板已下载');
+}
+
+async function exportAllData(){
+  const entries=await getAllEntries();
+  if(!entries.length){showToast('暂无数据可导出');return;}
+  const header='id,date,qhd_price,coking_price,coke_price,port_inventory,power_consumption,raw_production,coal_import,rebar_price,createdAt';
+  const rows=entries.map(r=>[r.id,r.date,r.qhd,r.coking,r.coke,r.inv,r.cons,r.prod,r.imp,r.rebar,r.createdAt].join(','));
+  const csv=header+'\n'+rows.join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`coal_tracker_export_${new Date().toISOString().split('T')[0]}.csv`;a.click();
+  showToast('✓ 数据已导出');
+}
+
+// ============================================================
+// CSV 批量导入
+// ============================================================
+const CSV_COLUMN_MAP = {
+  'date':'date','日期':'date',
+  'qhd_price':'qhd','动力煤':'qhd',
+  'coking_price':'coking','炼焦煤':'coking',
+  'coke_price':'coke','焦炭':'coke',
+  'port_inventory':'inv','港口库存':'inv',
+  'power_consumption':'cons','电厂日耗':'cons',
+  'raw_production':'prod','原煤产量':'prod',
+  'coal_import':'imp','进口煤':'imp',
+  'rebar_price':'rebar','螺纹钢':'rebar',
+};
+
+function parseCSV(text){
+  // 处理BOM
+  const clean=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines=clean.split('\n').filter(l=>l.trim()&&!l.trim().startsWith('#'));
+  if(lines.length<2) return {error:'CSV至少需要1行表头+1行数据'};
+  const headers=lines[0].split(',').map(h=>h.trim());
+  const mappedHeaders=headers.map(h=>CSV_COLUMN_MAP[h]||h);
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=lines[i].split(',').map(v=>v.trim());
+    if(vals.length<2) continue;
+    const obj={};
+    mappedHeaders.forEach((h,idx)=>{if(vals[idx]!==undefined)obj[h]=vals[idx];});
+    if(!obj.date) continue;
+    rows.push({...obj,createdAt:new Date().toISOString(),source:'csv_import'});
+  }
+  if(!rows.length) return {error:'未找到有效数据行'};
+  return {rows};
+}
+
+function handleCSVFile(file){
+  if(!file) return;
+  if(file.size>5*1024*1024){showImportStatus('文件过大（最大5MB）',true);return;}
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    // 尝试UTF-8，失败则GBK
+    let text=e.target.result;
+    const result=parseCSV(text);
+    if(result.error){showImportStatus(result.error,true);return;}
+    pendingImportData=result.rows;
+    showImportPreview(result.rows);
+    showImportStatus(`解析成功：${result.rows.length}条记录，点击"确认导入"写入数据库`,false);
+  };
+  reader.onerror=()=>showImportStatus('文件读取失败',true);
+  reader.readAsText(file,'UTF-8');
+}
+function showImportStatus(msg,isErr){
+  const el=document.getElementById('import-status');
+  el.style.display='block';
+  el.className='import-status'+(isErr?' err':'');
+  el.textContent=isErr?'✗ '+msg:'✓ '+msg;
+}
+function showImportPreview(rows){
+  const cols=['date','qhd','coking','coke','inv','cons'];
+  const labels={'date':'日期','qhd':'动力煤','coking':'炼焦煤','coke':'焦炭','inv':'库存','cons':'日耗'};
+  const el=document.getElementById('import-preview');
+  el.style.display='block';
+  el.innerHTML=`<table class="dt"><thead><tr>${cols.map(c=>`<th>${labels[c]||c}</th>`).join('')}</tr></thead><tbody>${
+    rows.slice(0,8).map(r=>`<tr>${cols.map(c=>`<td class="mono" style="font-size:10px">${r[c]||'—'}</td>`).join('')}</tr>`).join('')
+  }${rows.length>8?`<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text3);font-family:var(--mono);font-size:10px;padding:8px">...还有${rows.length-8}条</td></tr>`:''}</tbody></table>`;
+  document.getElementById('import-actions').style.display='flex';
+}
+async function confirmImport(){
+  if(!pendingImportData){return;}
+  let ok=0;
+  for(const row of pendingImportData){
+    try{await addEntry(row);ok++;}catch(e){console.error(e);}
+  }
+  pendingImportData=null;
+  document.getElementById('import-preview').style.display='none';
+  document.getElementById('import-actions').style.display='none';
+  document.getElementById('drop-zone').style.display='block';
+  document.getElementById('csv-file').value='';
+  showImportStatus(`成功导入 ${ok} 条记录`,false);
+  await renderHist();
+  await refreshSignalsFromEntries();
+  showToast(`✓ 批量导入完成 (${ok}条)`);
+}
+function cancelImport(){
+  pendingImportData=null;
+  document.getElementById('import-preview').style.display='none';
+  document.getElementById('import-actions').style.display='none';
+  document.getElementById('import-status').style.display='none';
+  document.getElementById('csv-file').value='';
+}
+
+// 拖拽支持
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('over');
+  const file=e.dataTransfer.files[0];
+  if(file) handleCSVFile(file);
+});
+
+// ============================================================
+// 投资信号计算
+// ============================================================
+function updateSignals(){
+  const data=STATE.futuresData.length?STATE.futuresData:futFallback;
+  const j=data.find(d=>d.sym.startsWith('J')&&!d.sym.startsWith('JM')&&d.ex==='dce')||data[0];
+  const jm=data.find(d=>d.sym.startsWith('JM')&&d.ex==='dce')||data[1];
+  const zc=data.find(d=>d.sym.startsWith('ZC'))||data[0];
+
+  // 动力煤信号
+  const zcPct=zc?zc.pct:0;
+  const thermalSig=zcPct>1?'偏多':zcPct<-1?'偏空':'中性';
+  const thermalCol=zcPct>1?'var(--green)':zcPct<-1?'var(--red)':'var(--accent)';
+  document.getElementById('sig-thermal').textContent=thermalSig;
+  document.getElementById('sig-thermal').style.color=thermalCol;
+  document.getElementById('sig-thermal-d').textContent=`期货${zcPct>=0?'上涨':'下跌'} ${Math.abs(zcPct).toFixed(2)}%，库存高位承压`;
+
+  // 焦化利润信号
+  const jPrice=j?j.price:1816,jmPrice=jm?jm.price:1294;
+  const margin=Math.round(jPrice-jmPrice*1.35-450);
+  const cokingSig=margin<-100?'偏空':margin>50?'偏多':'中性';
+  document.getElementById('sig-coking').textContent=cokingSig;
+  document.getElementById('sig-coking').style.color=margin<0?'var(--red)':margin>50?'var(--green)':'var(--accent)';
+  document.getElementById('sig-coking-d').textContent=`焦化利润${margin}元/吨，${margin<0?'亏损延续':'盈利改善'}`;
+  // 总览 KPI：焦化利润（k3）
+  const k3=document.getElementById('k3');
+  if(k3){
+    k3.textContent=margin;
+    k3.style.color=margin<0?'var(--red)':'var(--green)';
+    document.getElementById('k3m').innerHTML=`元/吨 <span class="${margin<0?'dn':'up'}">${margin<0?'亏损':'盈利'}</span>`;
+  }
+
+  // 进口套利信号 —— 由外生指标(澳煤现货价/海运费)计算
+  const em=exoMetrics();
+  if(em.impSpread!=null){
+    const arbSig=em.impSpread>30?'偏多':em.impSpread<-30?'偏空':'中性';
+    document.getElementById('sig-arb').textContent=arbSig;
+    document.getElementById('sig-arb').style.color=em.impSpread>30?'var(--green)':em.impSpread<-30?'var(--red)':'var(--accent)';
+    document.getElementById('sig-arb-d').textContent=`国内-澳煤到岸 ${em.impSpread>=0?'+':''}${em.impSpread}元/吨，${em.impSpread>=0?'进口有套利空间':'进口窗口关闭'}`;
+  }else{
+    document.getElementById('sig-arb').textContent='—';
+    document.getElementById('sig-arb').style.color='var(--text3)';
+    document.getElementById('sig-arb-d').textContent='等待外生数据(澳煤现货价/海运费)';
+  }
+
+  // 库存信号 —— 由录入数据(港口库存)驱动
+  const k4=document.getElementById('k4');
+  if(entrySig && entrySig.inv){
+    document.getElementById('sig-inv').textContent=entrySig.inv.text;
+    document.getElementById('sig-inv').style.color=entrySig.inv.c;
+    document.getElementById('sig-inv-d').textContent=entrySig.inv.desc;
+    // 总览 KPI：秦皇岛港库存（k4）
+    if(k4){
+      k4.textContent=entrySig.inv.val;
+      k4.style.color='var(--text)';
+      document.getElementById('k4m').innerHTML=`万吨 <span class="${entrySig.inv.color}">${entrySig.inv.text}</span>`;
+    }
+  }else{
+    document.getElementById('sig-inv').textContent='待录入';
+    document.getElementById('sig-inv').style.color='var(--text3)';
+    document.getElementById('sig-inv-d').textContent='录入港口库存后自动研判库存周期';
+    // 无录入数据：k4 保持占位并提示
+    if(k4){
+      k4.textContent='—';
+      k4.style.color='var(--text3)';
+      document.getElementById('k4m').innerHTML=`万吨 <span class="fl">待录入</span>`;
+    }
+  }
+
+  // 打分表（比价套利维度综合焦化利润 + 进口价差）
+  const arbScore=(()=>{
+    let s=margin>0?6:4;                                  // 焦化利润贡献
+    if(em.impSpread!=null) s+=em.impSpread>30?2:em.impSpread<-30?-1:1;  // 进口套利贡献
+    return Math.max(1,Math.min(10,s));
+  })();
+  // 供给/需求/库存 维度优先用录入数据，缺失则回退静态默认
+  const sup=(entrySig&&entrySig.supply)||{score:3,dir:'▼',color:'dn'};
+  const dem=(entrySig&&entrySig.demand)||{score:5,dir:'→',color:'fl'};
+  const inv=(entrySig&&entrySig.inv)||{score:3,dir:'▼',color:'dn'};
+  const scores=[
+    {dim:'供给紧张度',wt:'25%',sc:sup.score,dir:sup.dir,color:sup.color,kpi:'产量、进口量'},
+    {dim:'需求强度',wt:'30%',sc:dem.score,dir:dem.dir,color:dem.color,kpi:'日耗、可用天数'},
+    {dim:'库存压力',wt:'25%',sc:inv.score,dir:inv.dir,color:inv.color,kpi:'港口库存、电厂库存'},
+    {dim:'比价套利',wt:'20%',sc:arbScore,dir:arbScore>5?'▲':arbScore<4?'▼':'→',color:arbScore>5?'up':arbScore<4?'dn':'fl',kpi:'焦化利润、进口价差'},
+  ];
+  const composite=scores.reduce((a,b)=>a+b.sc*parseFloat(b.wt)/100,0).toFixed(1);
+  document.getElementById('score-tbody').innerHTML=scores.map(r=>`<tr><td>${r.dim}</td><td class="mono" style="color:var(--text2)">${r.wt}</td><td class="${r.color} mono">${r.sc}/10</td><td class="${r.color}">${r.dir} ${r.color==='up'?'偏多':r.color==='dn'?'偏空':'平稳'}</td><td style="color:var(--text3)">${r.kpi}</td></tr>`).join('');
+
+  // 综合研判
+  const compNum=parseFloat(composite);
+  const invText=(entrySig&&entrySig.inv)?entrySig.inv.desc.replace('港口库存','秦皇岛港口库存'):'秦皇岛港口库存数据待录入';
+  document.getElementById('sig-text').innerHTML=`
+    <strong>综合评分 ${composite}/10 · ${compNum<4?'看空':compNum>6?'看多':'中性'}</strong><br><br>
+    <strong>动力煤：</strong>期货主力 ZC ${zc?zc.price:'786'}元/吨，${zcPct>=0?'小幅上涨':'回调'} ${Math.abs(zcPct).toFixed(2)}%。${invText}，价格短期维持弱势震荡。<br><br>
+    <strong>焦化链条：</strong>焦炭主力 J ${j?j.price:'1,816'}元/吨，焦煤 JM ${jm?jm.price:'1,294'}元/吨，估算焦化利润约<strong>${margin}元/吨</strong>，${margin<0?'持续亏损，焦化开工率下行压力较大':'盈利有所改善，关注开工率变化'}。<br><br>
+    <strong>进口套利：</strong>${em.impSpread!=null?`国内动力煤较澳煤到岸完税成本<strong>${em.impSpread>=0?'+':''}${em.impSpread}元/吨</strong>（澳煤现货${em.aus}USD/吨、海运费${em.freight}USD/吨，含${(IMPORT_MODEL.vat*100).toFixed(0)}%增值税），${em.impSpread>=0?'进口存在套利空间，关注进口放量对国内价格的压制':'进口窗口关闭，进口煤对国内冲击有限'}。`:'外生数据加载中。'}<br><br>
+    <strong>策略建议：</strong>${margin<-100?'动力煤空头或观望；焦化链条关注<strong>多焦炭/空焦煤</strong>修复性套利；关注高炉开工率拐点。':'焦化利润改善，可关注多焦炭机会；动力煤维持观望。'}`;
+
+  renderSpreadTable();   // 期货/外生更新后联动刷新比价表
+}
+
+// ============================================================
+// Toast通知
+// ============================================================
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ============================================================
+// 主题切换（暗色 / 浅色，本地持久化）
+// ============================================================
+function applyTheme(t){
+  document.body.classList.toggle('light', t==='light');
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.textContent = t==='light' ? '🌙 深色' : '☀️ 浅色';
+}
+function rebuildCharts(){
+  // 销毁所有图表实例，重置构建标记，再重建当前可见标签页的图表
+  ['priceChart','invChart','marginChart','zcCurve','spreadFut'].forEach(id=>{
+    const c=window.Chart&&Chart.getChart(id); if(c)c.destroy();
+  });
+  pcBuilt=icBuilt=mcBuilt=fcBuilt=false; pcObj=null;
+  const vis=id=>{const el=document.getElementById(id);return el&&!el.classList.contains('hidden');};
+  if(vis('tab-overview')) buildPriceChart();
+  if(vis('tab-inventory')){icBuilt=true;buildLineChart('invChart',invH,'#2dd4bf',130);}
+  if(vis('tab-price')){mcBuilt=true;buildLineChart('marginChart',marginH,'#a78bfa',130);}
+  if(vis('tab-futures')) buildFutCharts();
+}
+function toggleTheme(){
+  const next = document.body.classList.contains('light') ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem('coal_theme', next); }catch(e){}
+  rebuildCharts();
+}
+// 启动时应用已保存主题（须在首个图表构建前）
+applyTheme(localStorage.getItem('coal_theme') || 'dark');
+
+// ============================================================
+// 初始化
+// ============================================================
+buildPriceChart();
+renderFuturesUI();
+renderStocksUI();
+renderHist();
+renderExogenous();
+renderSpreadTable();
+
+// 延迟加载实时数据（避免阻塞首屏）
+setTimeout(()=>refreshAllData(), 800);
+
+// 自动刷新（每5分钟）
+setInterval(()=>refreshAllData(), 5*60*1000);
+</script>
+</body>
+</html>

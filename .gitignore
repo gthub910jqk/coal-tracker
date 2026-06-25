@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local env
+.env
+.env.local
+
+# Logs
+*.log
+
+# Large/Binary artifacts (不进公开仓库)
+*.heic
+*.HEIC
+*.zip

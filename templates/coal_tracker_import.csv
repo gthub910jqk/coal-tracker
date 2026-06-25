@@ -1,0 +1,14 @@
+# 煤炭中观数据追踪系统 - 批量导入模板 v3.0
+# 字段说明：
+#   date              = 日期 (YYYY-MM-DD)
+#   qhd_price         = 动力煤价格，秦皇岛港 6000大卡 (元/吨)
+#   coking_price      = 炼焦煤价格，山西古交2#焦煤车板含税 (元/吨)
+#   coke_price        = 焦炭价格，山西太原一级冶金焦车板含税 (元/吨)
+#   port_inventory    = 秦皇岛港口库存 (万吨)
+#   power_consumption = 六大电厂日耗煤 (万吨)
+#   raw_production    = 全国原煤产量 (万吨/月)
+#   coal_import       = 进口煤总量 (万吨/月)
+#   rebar_price       = 螺纹钢价格 (元/吨)
+date,qhd_price,coking_price,coke_price,port_inventory,power_consumption,raw_production,coal_import,rebar_price
+2025-06-01,785,1300,1820,482,78,38000,4200,3650
+2025-05-26,780,1310,1840,475,80,37800,4100,3680

@@ -1,0 +1,87 @@
+{
+  "updated_at": "2026-06-11T19:57:17.682375+08:00",
+  "source": "fallback",
+  "indicators": [
+    {
+      "id": "thermal_power_yoy",
+      "name": "火电生产同比增速",
+      "unit": "%",
+      "src": "中电联",
+      "freq": "月(20日)",
+      "value": 3.5,
+      "change": 0.8
+    },
+    {
+      "id": "cement_yoy",
+      "name": "水泥产量增速",
+      "unit": "%",
+      "src": "华通人",
+      "freq": "月(20日)",
+      "value": -2.1,
+      "change": -0.3
+    },
+    {
+      "id": "pig_iron_yoy",
+      "name": "生铁产量增速",
+      "unit": "%",
+      "src": "华通人",
+      "freq": "月(20日)",
+      "value": 1.8,
+      "change": 0.5
+    },
+    {
+      "id": "coke_export_yoy",
+      "name": "焦炭出口量增速",
+      "unit": "%",
+      "src": "华通人",
+      "freq": "月(20日)",
+      "value": -15.2,
+      "change": -3.1
+    },
+    {
+      "id": "ammonia_yoy",
+      "name": "合成氨产量增速",
+      "unit": "%",
+      "src": "华通人",
+      "freq": "月(20日)",
+      "value": 4.2,
+      "change": 1.0
+    },
+    {
+      "id": "aus_bj_coal",
+      "name": "澳大利亚BJ煤现货价",
+      "unit": "USD/吨",
+      "src": "资源网",
+      "freq": "月(20日)",
+      "value": 128.5,
+      "change": 2.3
+    },
+    {
+      "id": "brent_crude",
+      "name": "布伦特原油现货价",
+      "unit": "USD/桶",
+      "src": "Bloomberg",
+      "freq": "周",
+      "value": 82.6,
+      "change": 1.4
+    },
+    {
+      "id": "qld_japan_freight",
+      "name": "昆士兰-日本海运费",
+      "unit": "USD/吨",
+      "src": "Clarkson",
+      "freq": "周",
+      "value": 9.2,
+      "change": -0.3
+    },
+    {
+      "id": "bdi",
+      "name": "波罗的海干散货指数",
+      "unit": "点",
+      "src": "Bloomberg",
+      "freq": "周",
+      "value": 1842,
+      "change": 56
+    }
+  ]
+}
