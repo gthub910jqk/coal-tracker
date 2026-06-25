@@ -2,12 +2,13 @@
 fetch_futures.py — AKShare 期货行情采集
 输出: data/futures.json
 """
-import json, os
+import json, os, traceback
 from datetime import datetime, timezone, timedelta
 
 try:
     import akshare as ak
     AK_AVAILABLE = True
+    print(f"[INFO] akshare {getattr(ak, '__version__', '?')}")
 except ImportError:
     AK_AVAILABLE = False
     print("[WARN] akshare not installed, using fallback")
@@ -15,27 +16,37 @@ except ImportError:
 CST = timezone(timedelta(hours=8))
 OUT = os.path.join(os.path.dirname(__file__), '..', 'data', 'futures.json')
 
+VARIETIES = [
+    ('ZC', '动力煤', 'zce'),
+    ('J',  '焦炭',   'dce'),
+    ('JM', '焦煤',   'dce'),
+]
+
 def fetch():
     results = []
-    for sym in ['ZC', 'J', 'JM']:
+    for sym, cn_name, ex in VARIETIES:
         try:
-            df = ak.futures_zh_realtime(symbol=sym)
-            if df is None or df.empty: continue
+            df = ak.futures_zh_realtime(symbol=cn_name)
+            if df is None or df.empty:
+                print(f"  ⚠ {sym} ({cn_name}): empty result")
+                continue
+            print(f"  [debug] {sym} columns: {list(df.columns)}")
             main = df.sort_values('持仓量', ascending=False).iloc[0]
             results.append({
                 'sym':    str(main.get('代码', sym)),
-                'name':   {'ZC':'动力煤','J':'焦炭','JM':'焦煤'}[sym]+'主力',
-                'ex':     'zce' if sym=='ZC' else 'dce',
-                'price':  float(main.get('最新价', 0)),
-                'chg':    float(main.get('涨跌额', 0)),
-                'pct':    float(main.get('涨跌幅', 0)),
-                'vol':    int(main.get('成交量', 0)),
-                'oi':     int(main.get('持仓量', 0)),
-                'settle': float(main.get('结算价', 0)),
+                'name':   f'{cn_name}主力',
+                'ex':     ex,
+                'price':  float(main.get('最新价', 0) or 0),
+                'chg':    float(main.get('涨跌额', 0) or 0),
+                'pct':    float(main.get('涨跌幅', 0) or 0),
+                'vol':    int(main.get('成交量', 0) or 0),
+                'oi':     int(main.get('持仓量', 0) or 0),
+                'settle': float(main.get('结算价', 0) or 0),
             })
             print(f"  ✓ {sym}: {main.get('最新价')}")
         except Exception as e:
-            print(f"  ✗ {sym}: {e}")
+            print(f"  ✗ {sym} ({cn_name}): {type(e).__name__}: {e}")
+            traceback.print_exc()
     return results
 
 FALLBACK = [

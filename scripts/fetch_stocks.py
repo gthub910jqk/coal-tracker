@@ -2,12 +2,13 @@
 fetch_stocks.py — AKShare 煤炭股行情采集
 输出: data/stocks.json
 """
-import json, os
+import json, os, traceback
 from datetime import datetime, timezone, timedelta
 
 try:
     import akshare as ak
     AK_AVAILABLE = True
+    print(f"[INFO] akshare {getattr(ak, '__version__', '?')}")
 except ImportError:
     AK_AVAILABLE = False
     print("[WARN] akshare not installed, using fallback")
@@ -56,7 +57,8 @@ def fetch():
             print(f"  ✓ {info['name']}: {r.get('最新价')}")
         return results
     except Exception as e:
-        print(f"  ✗ {e}")
+        print(f"  ✗ {type(e).__name__}: {e}")
+        traceback.print_exc()
         return []
 
 def make_fallback():
