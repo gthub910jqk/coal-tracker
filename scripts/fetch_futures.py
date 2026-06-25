@@ -30,20 +30,21 @@ def fetch():
             if df is None or df.empty:
                 print(f"  ⚠ {sym} ({cn_name}): empty result")
                 continue
-            print(f"  [debug] {sym} columns: {list(df.columns)}")
-            main = df.sort_values('持仓量', ascending=False).iloc[0]
+            main = df.sort_values('position', ascending=False).iloc[0]
+            trade = float(main.get('trade', 0) or 0)
+            prev  = float(main.get('prevsettlement', 0) or 0)
             results.append({
-                'sym':    str(main.get('代码', sym)),
+                'sym':    str(main.get('symbol', sym)),
                 'name':   f'{cn_name}主力',
                 'ex':     ex,
-                'price':  float(main.get('最新价', 0) or 0),
-                'chg':    float(main.get('涨跌额', 0) or 0),
-                'pct':    float(main.get('涨跌幅', 0) or 0),
-                'vol':    int(main.get('成交量', 0) or 0),
-                'oi':     int(main.get('持仓量', 0) or 0),
-                'settle': float(main.get('结算价', 0) or 0),
+                'price':  trade,
+                'chg':    trade - prev,
+                'pct':    float(main.get('changepercent', 0) or 0),
+                'vol':    int(main.get('volume', 0) or 0),
+                'oi':     int(main.get('position', 0) or 0),
+                'settle': float(main.get('settlement', 0) or 0),
             })
-            print(f"  ✓ {sym}: {main.get('最新价')}")
+            print(f"  ✓ {sym}: {trade}")
         except Exception as e:
             print(f"  ✗ {sym} ({cn_name}): {type(e).__name__}: {e}")
             traceback.print_exc()
