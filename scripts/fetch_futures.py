@@ -17,9 +17,10 @@ CST = timezone(timedelta(hours=8))
 OUT = os.path.join(os.path.dirname(__file__), '..', 'data', 'futures.json')
 
 VARIETIES = [
-    ('ZC', '动力煤', 'zce'),
-    ('J',  '焦炭',   'dce'),
-    ('JM', '焦煤',   'dce'),
+    # 动力煤 ZC（郑商所）自 2021 年起被限制交易，主力合约长期滞留 2022 年、
+    # 持仓和成交量近零，已无追踪意义。仅保留焦炭/焦煤两个活跃合约。
+    ('J',  '焦炭', 'dce'),
+    ('JM', '焦煤', 'dce'),
 ]
 
 def fetch():

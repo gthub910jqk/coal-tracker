@@ -293,17 +293,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     </div>
   </div>
   <div class="mini-kpi-row" id="fut-kpi-row">
-    <div class="mkpi" style="border-top:2px solid var(--accent)"><div class="mkpi-l">ZC 动力煤主力</div><div class="mkpi-v" id="fut-zc">—</div><div class="mkpi-s" id="fut-zc-s">加载中</div></div>
     <div class="mkpi" style="border-top:2px solid var(--red)"><div class="mkpi-l">J 焦炭主力</div><div class="mkpi-v" id="fut-j">—</div><div class="mkpi-s" id="fut-j-s">加载中</div></div>
     <div class="mkpi" style="border-top:2px solid var(--blue)"><div class="mkpi-l">JM 焦煤主力</div><div class="mkpi-v" id="fut-jm">—</div><div class="mkpi-s" id="fut-jm-s">加载中</div></div>
     <div class="mkpi" style="border-top:2px solid var(--teal)"><div class="mkpi-l">J-JM 利润差</div><div class="mkpi-v" id="fut-spread">—</div><div class="mkpi-s" id="fut-spread-s">焦化利润</div></div>
   </div>
   <div class="panel">
     <div class="ph">
-      <div><div class="pt">煤炭期货合约行情</div><div class="ps" id="fut-source-note">郑商所 ZCE · 大商所 DCE · 实时行情</div></div>
+      <div><div class="pt">煤炭期货合约行情</div><div class="ps" id="fut-source-note">大商所 DCE · 实时行情</div></div>
       <div class="pa">
         <div class="bx active" onclick="filterFut('all',this)">全部</div>
-        <div class="bx" onclick="filterFut('zce',this)">郑商所</div>
         <div class="bx" onclick="filterFut('dce',this)">大商所</div>
         <div class="bx" onclick="refreshFutures()" style="color:var(--teal)">⟳ 刷新</div>
       </div>
@@ -313,15 +311,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
       <tbody id="fut-tbody"></tbody>
     </table>
   </div>
-  <div class="curve-row" style="margin-top:12px">
-    <div class="panel">
-      <div class="ph"><div class="pt">ZC 动力煤期限结构</div><div class="ps">元/吨</div></div>
-      <div class="ca"><canvas id="zcCurve" height="135"></canvas></div>
-    </div>
-    <div class="panel">
-      <div class="ph"><div class="pt">J/JM 价差历史</div><div class="ps">近12周</div></div>
-      <div class="ca"><canvas id="spreadFut" height="135"></canvas></div>
-    </div>
+  <div class="panel" style="margin-top:12px">
+    <div class="ph"><div class="pt">J/JM 价差历史</div><div class="ps">近12周</div></div>
+    <div class="ca"><canvas id="spreadFut" height="135"></canvas></div>
   </div>
   <div class="panel" style="margin-top:12px">
     <div class="ph"><div class="pt">跨期套利监控</div><div class="ps">CALENDAR SPREAD</div></div>
@@ -672,10 +664,10 @@ const IMPORT_MODEL={
   calo:5500/6300,   // 热值折算系数(BJ6300 → 国内5500大卡)
 };
 const COAL_OIL_REF=1.25;                              // 煤油比价参考均值
-// 由期货 + 外生指标计算的派生比价指标
+// 由现货录入 + 外生指标计算的派生比价指标
+// 国内动力煤价格来源：用户录入的秦皇岛现货价（ZC 期货已下线，无主力合约）
 function exoMetrics(){
-  const data=STATE.futuresData.length?STATE.futuresData:futFallback;
-  const zc=data.find(d=>d.sym.startsWith('ZC'))||{price:786};
+  const qhd=entrySig?.qhd?.val ?? null;
   const aus=getExo('aus_bj_coal'), freight=getExo('qld_japan_freight'), brent=getExo('brent_crude');
   const M=IMPORT_MODEL;
   let impLanded=null, impSpread=null, impTax=null, coalOil=null;
@@ -684,10 +676,10 @@ function exoMetrics(){
     const taxed=cif*(1+M.tariff)*(1+M.vat)+M.port;          // 含税完税成本
     impLanded=Math.round(taxed*M.calo);                     // 折算到国内5500口径
     impTax=Math.round((taxed-cif-M.port)*M.calo);           // 其中税负(关税+增值税)折后
-    impSpread=Math.round(zc.price-impLanded);               // 国内价 - 到岸完税成本
+    if(qhd!=null) impSpread=Math.round(qhd-impLanded);      // 国内现货 - 到岸完税成本（无录入则保持 null）
   }
-  if(brent!=null) coalOil=+(zc.price/(brent*M.fx)).toFixed(2);   // 煤价/油价(同币种)
-  return {zcPrice:zc.price, aus, freight, brent, impLanded, impTax, impSpread, coalOil};
+  if(brent!=null && qhd!=null) coalOil=+(qhd/(brent*M.fx)).toFixed(2);   // 煤价/油价(同币种)
+  return {qhdPrice:qhd, aus, freight, brent, impLanded, impTax, impSpread, coalOil};
 }
 
 // ============================================================
@@ -744,17 +736,15 @@ function renderSpreadTable(){
 // ============================================================
 
 // 期货合约代码映射（东方财富）
+// 动力煤 ZC（郑商所）自 2021 年起被限制交易，主力合约长期滞留 2022、持仓近零；
+// 已下线，秦皇岛动力煤现货价改由「数据录入」标签页手动填写。
 const FUT_CODES = {
-  'ZC0': { name:'动力煤主力', ex:'zce', sym:'ZC' },
-  'J0':  { name:'焦炭主力',   ex:'dce', sym:'J'  },
-  'JM0': { name:'焦煤主力',   ex:'dce', sym:'JM' },
+  'J0':  { name:'焦炭主力', ex:'dce', sym:'J'  },
+  'JM0': { name:'焦煤主力', ex:'dce', sym:'JM' },
 };
 
 // 模拟期货数据（API失败时的fallback）
 const futFallback=[
-  {ex:'zce',sym:'ZC2509',name:'动力煤2509',price:786,chg:12,pct:1.55,vol:182400,oi:856000,basis:1},
-  {ex:'zce',sym:'ZC2511',name:'动力煤2511',price:778,chg:8,pct:1.04,vol:42100,oi:210000,basis:-7},
-  {ex:'zce',sym:'ZC2601',name:'动力煤2601',price:772,chg:5,pct:0.65,vol:18600,oi:98000,basis:-13},
   {ex:'dce',sym:'J2509', name:'焦炭2509',  price:1816,chg:-28,pct:-1.52,vol:224000,oi:1020000,basis:4},
   {ex:'dce',sym:'J2511', name:'焦炭2511',  price:1798,chg:-18,pct:-0.99,vol:68000,oi:380000,basis:-22},
   {ex:'dce',sym:'JM2509',name:'焦煤2509',  price:1294,chg:-14,pct:-1.07,vol:196000,oi:880000,basis:6},
@@ -768,7 +758,7 @@ async function fetchFuturesFromLocal() {
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     const json = await resp.json();
     const arr = json.contracts;
-    if(!Array.isArray(arr) || arr.length < 4) throw new Error('快照数据不足');
+    if(!Array.isArray(arr) || arr.length < 2) throw new Error('快照数据不足');
     return arr.map(c => ({
       sym: c.sym, name: c.name, ex: c.ex,
       price: +c.price, chg: +c.chg, pct: +c.pct,
@@ -784,7 +774,7 @@ async function fetchFuturesFromLocal() {
 
 async function fetchFuturesFromEF() {
   // 东方财富期货行情接口（支持跨域）
-  const codes = ['ZC0','J0','JM0']; // 主力合约
+  const codes = ['J0','JM0']; // 主力合约（ZC 动力煤已下线，见 FUT_CODES 注释）
   const symbol = codes.map(c=>c).join(',');
   try {
     const url = `https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f12,f14,f15,f16,f17,f18,f152&secids=${codes.map(c=>`113.${c}`).join(',')}&_=${Date.now()}`;
@@ -835,7 +825,7 @@ async function refreshFutures() {
     loaded = true;
     setApiDot('dot-ef','ok');
     const fb = localData[0]?._source === 'fallback';
-    document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 本地快照' + (fb?'（脚本fallback）':'（AKShare）');
+    document.getElementById('fut-source-note').textContent = '大商所 DCE · 本地快照' + (fb?'（脚本fallback）':'（AKShare）');
   }
 
   // 2) 降级：东方财富实时接口
@@ -858,7 +848,7 @@ async function refreshFutures() {
       STATE.futuresLoaded = true;
       loaded = true;
       setApiDot('dot-ef','ok');
-      document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 东方财富实时';
+      document.getElementById('fut-source-note').textContent = '大商所 DCE · 东方财富实时';
     }
   }
 
@@ -868,10 +858,10 @@ async function refreshFutures() {
   setApiDot('dot-sina', loaded ? 'ok' : 'err');
 
   // 无论API是否成功，使用fallback模拟数据补充缺失合约
-  if(!loaded || STATE.futuresData.length < 4) {
+  if(!loaded || STATE.futuresData.length < 2) {
     STATE.futuresData = futFallback;
     STATE.futuresLoaded = false;
-    document.getElementById('fut-source-note').textContent = '郑商所 ZCE · 大商所 DCE · 模拟数据（行情接口受限）';
+    document.getElementById('fut-source-note').textContent = '大商所 DCE · 模拟数据（行情接口受限）';
     setApiDot('dot-ef','err');
     setApiDot('dot-sina','err');
   }
@@ -887,13 +877,8 @@ async function refreshFutures() {
 
 function updateFutKPIs() {
   const data = STATE.futuresData;
-  const zc = data.find(d=>d.sym.startsWith('ZC')&&d.ex==='zce') || data[0];
   const j  = data.find(d=>d.sym.startsWith('J')&&!d.sym.startsWith('JM')&&d.ex==='dce');
   const jm = data.find(d=>d.sym.startsWith('JM')&&d.ex==='dce');
-  if(zc){
-    document.getElementById('fut-zc').textContent=zc.price.toLocaleString();
-    document.getElementById('fut-zc-s').innerHTML=`<span class="${zc.pct>=0?'up':'dn'}">${zc.pct>=0?'▲':'▼'} ${Math.abs(zc.pct).toFixed(2)}%</span>`;
-  }
   if(j){
     document.getElementById('fut-j').textContent=j.price.toLocaleString();
     document.getElementById('fut-j-s').innerHTML=`<span class="${j.pct>=0?'up':'dn'}">${j.pct>=0?'▲':'▼'} ${Math.abs(j.pct).toFixed(2)}%</span>`;
@@ -908,11 +893,19 @@ function updateFutKPIs() {
     document.getElementById('fut-spread').textContent=spread>0?'+'+spread:spread;
     document.getElementById('fut-spread-s').innerHTML=`<span class="${spread<0?'dn':'up'}">${spread<0?'亏损':'盈利'} ${Math.abs(spread)}元/吨</span>`;
   }
-  // 更新总览KPI
-  if(zc){
-    document.getElementById('k1').textContent=zc.price.toLocaleString();
-    document.getElementById('k1m').innerHTML=`元/吨 <span class="${zc.pct>=0?'up':'dn'}">${zc.pct>=0?'▲':'▼'} ${Math.abs(zc.pct).toFixed(2)}%</span>`;
+  // 总览 KPI k1（秦皇岛动力煤现货）：用户录入驱动，ZC 期货已下线
+  const k1=document.getElementById('k1'), k1m=document.getElementById('k1m');
+  if(entrySig && entrySig.qhd){
+    const q=entrySig.qhd;
+    k1.textContent=q.val.toLocaleString();
+    k1.style.color='var(--text)';
+    k1m.innerHTML=q.chg!==0
+      ? `元/吨 <span class="${q.pct>=0?'up':'dn'}">${q.pct>=0?'▲':'▼'} ${Math.abs(q.pct).toFixed(2)}%</span>`
+      : `元/吨 <span class="fl">现货录入</span>`;
+  }else if(k1.textContent==='—'){
+    k1m.innerHTML=`元/吨 <span class="fl">待录入</span>`;
   }
+  // 总览 KPI k2（焦炭主力）
   if(j){
     document.getElementById('k2').textContent=j.price.toLocaleString();
     document.getElementById('k2m').innerHTML=`元/吨 <span class="${j.pct>=0?'up':'dn'}">${j.pct>=0?'▲':'▼'} ${Math.abs(j.pct).toFixed(2)}%</span>`;
@@ -939,7 +932,6 @@ function renderFuturesUI(){
 }
 // 套利监控（静态）
 const arbD=[
-  ['ZC09-ZC11 正套',786,778,8,5,'+3','可正套','up'],
   ['J09-J11 正套',1816,1798,18,12,'+6','正套正常','fl'],
   ['JM09-JM11 正套',1294,1280,14,10,'+4','可正套','up'],
   ['J-JM 利润套利',1816,1294,-85,120,'-205','多焦炭','dn'],
@@ -948,8 +940,6 @@ document.getElementById('arb-tbody').innerHTML=arbD.map(r=>`<tr><td style="font-
 
 function buildFutCharts(){
   fcBuilt=true;
-  const ctx1=document.getElementById('zcCurve');
-  if(ctx1) new Chart(ctx1,{type:'line',data:{labels:['ZC现货','ZC2508','ZC2509','ZC2511','ZC2601','ZC2603'],datasets:[{data:[785,788,786,778,772,768],borderColor:'#f5a623',backgroundColor:'#f5a62318',fill:true,borderWidth:2,tension:.3,pointRadius:4,pointBackgroundColor:'#f5a623'}]},options:chartOpt()});
   buildLineChart('spreadFut',spreadFutH,'#a78bfa',135);
 }
 
@@ -1229,6 +1219,15 @@ async function computeEntrySignals(){
   const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
   const sig={};
 
+  // 秦皇岛动力煤现货价（用户录入，供总览 KPI / 比价 / 综合研判 / 进口套利共用）
+  // ZC 期货已下线，动力煤主价格回退到现货录入值
+  const qhdCur=num(cur.qhd), qhdPrev=prev?num(prev.qhd):null;
+  if(qhdCur!=null){
+    const chg=qhdPrev?qhdCur-qhdPrev:0;
+    const pct=qhdPrev?(chg/qhdPrev*100):0;
+    sig.qhd={val:qhdCur, chg:+chg.toFixed(2), pct:+pct.toFixed(2)};
+  }
+
   // 库存压力（港口库存绝对值 vs 参考均值）
   const inv=num(cur.inv);
   if(inv!=null){
@@ -1398,15 +1397,21 @@ function updateSignals(){
   const data=STATE.futuresData.length?STATE.futuresData:futFallback;
   const j=data.find(d=>d.sym.startsWith('J')&&!d.sym.startsWith('JM')&&d.ex==='dce')||data[0];
   const jm=data.find(d=>d.sym.startsWith('JM')&&d.ex==='dce')||data[1];
-  const zc=data.find(d=>d.sym.startsWith('ZC'))||data[0];
 
-  // 动力煤信号
-  const zcPct=zc?zc.pct:0;
-  const thermalSig=zcPct>1?'偏多':zcPct<-1?'偏空':'中性';
-  const thermalCol=zcPct>1?'var(--green)':zcPct<-1?'var(--red)':'var(--accent)';
-  document.getElementById('sig-thermal').textContent=thermalSig;
-  document.getElementById('sig-thermal').style.color=thermalCol;
-  document.getElementById('sig-thermal-d').textContent=`期货${zcPct>=0?'上涨':'下跌'} ${Math.abs(zcPct).toFixed(2)}%，库存高位承压`;
+  // 动力煤信号 —— 由用户录入的秦皇岛现货价驱动（ZC 期货已下线）
+  const qhdSig=entrySig&&entrySig.qhd;
+  const qhdPct=qhdSig?qhdSig.pct:0;
+  if(qhdSig){
+    const thermalSig=qhdPct>1?'偏多':qhdPct<-1?'偏空':'中性';
+    const thermalCol=qhdPct>1?'var(--green)':qhdPct<-1?'var(--red)':'var(--accent)';
+    document.getElementById('sig-thermal').textContent=thermalSig;
+    document.getElementById('sig-thermal').style.color=thermalCol;
+    document.getElementById('sig-thermal-d').textContent=`现货 ${qhdSig.val} 元/吨，${qhdPct>=0?'上涨':'下跌'} ${Math.abs(qhdPct).toFixed(2)}%`;
+  }else{
+    document.getElementById('sig-thermal').textContent='待录入';
+    document.getElementById('sig-thermal').style.color='var(--text3)';
+    document.getElementById('sig-thermal-d').textContent='录入秦皇岛现货价后自动研判';
+  }
 
   // 焦化利润信号
   const jPrice=j?j.price:1816,jmPrice=jm?jm.price:1294;
@@ -1484,9 +1489,9 @@ function updateSignals(){
   const invText=(entrySig&&entrySig.inv)?entrySig.inv.desc.replace('港口库存','秦皇岛港口库存'):'秦皇岛港口库存数据待录入';
   document.getElementById('sig-text').innerHTML=`
     <strong>综合评分 ${composite}/10 · ${compNum<4?'看空':compNum>6?'看多':'中性'}</strong><br><br>
-    <strong>动力煤：</strong>期货主力 ZC ${zc?zc.price:'786'}元/吨，${zcPct>=0?'小幅上涨':'回调'} ${Math.abs(zcPct).toFixed(2)}%。${invText}，价格短期维持弱势震荡。<br><br>
+    <strong>动力煤：</strong>${qhdSig?`秦皇岛现货 ${qhdSig.val} 元/吨，较上一期${qhdPct>=0?'上涨':'回调'} ${Math.abs(qhdPct).toFixed(2)}%`:'秦皇岛现货价待录入（ZC 期货已下线，请通过「数据录入」标签页维护现货价格）'}。${invText}。<br><br>
     <strong>焦化链条：</strong>焦炭主力 J ${j?j.price:'1,816'}元/吨，焦煤 JM ${jm?jm.price:'1,294'}元/吨，估算焦化利润约<strong>${margin}元/吨</strong>，${margin<0?'持续亏损，焦化开工率下行压力较大':'盈利有所改善，关注开工率变化'}。<br><br>
-    <strong>进口套利：</strong>${em.impSpread!=null?`国内动力煤较澳煤到岸完税成本<strong>${em.impSpread>=0?'+':''}${em.impSpread}元/吨</strong>（澳煤现货${em.aus}USD/吨、海运费${em.freight}USD/吨，含${(IMPORT_MODEL.vat*100).toFixed(0)}%增值税），${em.impSpread>=0?'进口存在套利空间，关注进口放量对国内价格的压制':'进口窗口关闭，进口煤对国内冲击有限'}。`:'外生数据加载中。'}<br><br>
+    <strong>进口套利：</strong>${em.impSpread!=null?`国内动力煤较澳煤到岸完税成本<strong>${em.impSpread>=0?'+':''}${em.impSpread}元/吨</strong>（澳煤现货${em.aus}USD/吨、海运费${em.freight}USD/吨，含${(IMPORT_MODEL.vat*100).toFixed(0)}%增值税），${em.impSpread>=0?'进口存在套利空间，关注进口放量对国内价格的压制':'进口窗口关闭，进口煤对国内冲击有限'}。`:(qhdSig?'外生数据加载中。':'录入秦皇岛现货价后将自动计算进口价差。')}<br><br>
     <strong>策略建议：</strong>${margin<-100?'动力煤空头或观望；焦化链条关注<strong>多焦炭/空焦煤</strong>修复性套利；关注高炉开工率拐点。':'焦化利润改善，可关注多焦炭机会；动力煤维持观望。'}`;
 
   renderSpreadTable();   // 期货/外生更新后联动刷新比价表
@@ -1512,7 +1517,7 @@ function applyTheme(t){
 }
 function rebuildCharts(){
   // 销毁所有图表实例，重置构建标记，再重建当前可见标签页的图表
-  ['priceChart','invChart','marginChart','zcCurve','spreadFut'].forEach(id=>{
+  ['priceChart','invChart','marginChart','spreadFut'].forEach(id=>{
     const c=window.Chart&&Chart.getChart(id); if(c)c.destroy();
   });
   pcBuilt=icBuilt=mcBuilt=fcBuilt=false; pcObj=null;
